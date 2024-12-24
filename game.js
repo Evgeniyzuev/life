@@ -3,10 +3,10 @@ const STORAGE_KEY = 'gameSettings';
 
 // Настройки игры по умолчанию
 const defaultSettings = {
-    speed: 60,
+    speed: 80,
     enemyCount: 25,
     plantCount: 80,
-    difficulty: 50,
+    difficulty: 70,
     maxMass: 100000  // Добавляем настройку максимальной массы
 };
 
@@ -287,7 +287,7 @@ function handleButtonClick(id) {
             gameSettings.maxMass = Math.max(5000, gameSettings.maxMass - 5000);
             break;
         case 'mass-plus':
-            gameSettings.maxMass = Math.min(100000, gameSettings.maxMass + 5000);
+            gameSettings.maxMass = Math.min(200000, gameSettings.maxMass + 5000);
             break;
         case 'start':
             startGame();
@@ -359,25 +359,53 @@ function moveEntity(entity) {
         let targetX = entity.x;
         let targetY = entity.y;
         let nearestThreatDist = Infinity;
-        let bestPreyValue = 0;
-        let preyX = null;
-        let preyY = null;
 
         // Ищем ближайшую цель (существо или растение)
         [...entities, ...plants].forEach(target => {
             if (target === entity) return;
             
-            const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
-            if (dist < nearestThreatDist) {
+            // Вычисляем все возможные расстояния с учетом wrap-around
+            const distances = [
+                { 
+                    dx: target.x - entity.x,
+                    dy: target.y - entity.y
+                },
+                { 
+                    dx: target.x - entity.x + canvas.width,
+                    dy: target.y - entity.y
+                },
+                { 
+                    dx: target.x - entity.x - canvas.width,
+                    dy: target.y - entity.y
+                },
+                { 
+                    dx: target.x - entity.x,
+                    dy: target.y - entity.y + canvas.height
+                },
+                { 
+                    dx: target.x - entity.x,
+                    dy: target.y - entity.y - canvas.height
+                }
+            ];
+
+            // Находим кратчайшее расстояние
+            const shortestPath = distances.reduce((shortest, current) => {
+                const dist = Math.hypot(current.dx, current.dy);
+                return dist < shortest.dist ? { dist, dx: current.dx, dy: current.dy } : shortest;
+            }, { dist: Infinity, dx: 0, dy: 0 });
+
+            if (shortestPath.dist < nearestThreatDist) {
                 const targetHp = target.hp || 0;
-                if ((targetHp < entity.hp && dist < 200) || target instanceof Plant) {
-                    nearestThreatDist = dist;
-                    targetX = target.x;
-                    targetY = target.y;
-                } else if (targetHp > entity.hp && dist < 100) {
-                    // Убегаем от больших существ
-                    targetX = entity.x * 2 - target.x;
-                    targetY = entity.y * 2 - target.y;
+                if ((targetHp < entity.hp && shortestPath.dist < 200) || target instanceof Plant) {
+                    // Движение к добыче
+                    nearestThreatDist = shortestPath.dist;
+                    targetX = entity.x + shortestPath.dx;
+                    targetY = entity.y + shortestPath.dy;
+                } else if (targetHp > entity.hp && shortestPath.dist < 100) {
+                    // Убегание от угрозы через ближайший путь (включая границы)
+                    nearestThreatDist = shortestPath.dist;
+                    targetX = entity.x - shortestPath.dx;
+                    targetY = entity.y - shortestPath.dy;
                 }
             }
         });
@@ -387,7 +415,7 @@ function moveEntity(entity) {
         entity.x += Math.cos(angle) * entity.speed;
         entity.y += Math.sin(angle) * entity.speed;
 
-        // Улучшенный wrap around
+        // Wrap around
         if (entity.x < -entity.radius) entity.x += canvas.width;
         if (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
         if (entity.y < -entity.radius) entity.y += canvas.height;
