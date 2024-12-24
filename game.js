@@ -1,0 +1,577 @@
+// В начале файла, перед defaultSettings
+const STORAGE_KEY = 'gameSettings';
+
+// Настройки игры по умолчанию
+const defaultSettings = {
+    speed: 1.5,
+    enemyCount: 20,
+    plantCount: 40,
+    difficulty: 30,
+    maxMass: 30000  // Добавляем настройку максимальной массы
+};
+
+// Загружаем сохраненные настройки или используем значения по умолчанию
+let gameSettings = loadSettings();
+let gameState = 'menu'; // 'menu' или 'game'
+
+// Добавим функции для работы с localStorage
+function loadSettings() {
+    const savedSettings = localStorage.getItem(STORAGE_KEY);
+    if (savedSettings) {
+        try {
+            return JSON.parse(savedSettings);
+        } catch (e) {
+            console.error('Ошибка при загрузке настроек:', e);
+        }
+    }
+    return {...defaultSettings};
+}
+
+function saveSettings() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(gameSettings));
+    } catch (e) {
+        console.error('Ошибка при сохранении настроек:', e);
+    }
+}
+
+class Entity {
+    constructor(x, y, hp) {
+        this.x = x;
+        this.y = y;
+        this.hp = hp;
+        this.radius = Math.sqrt(hp);
+        this.speed = gameSettings.speed * 0.5;
+        this.isSlowed = false; // Добавляем флаг замедления
+    }
+
+    draw(ctx) {
+        this.drawAt(ctx, this.x, this.y);
+        
+        // Отрисовка частей существа при пересечении границ
+        if (this.x < this.radius) {
+            this.drawAt(ctx, this.x + canvas.width, this.y);
+        } else if (this.x > canvas.width - this.radius) {
+            this.drawAt(ctx, this.x - canvas.width, this.y);
+        }
+        
+        if (this.y < this.radius) {
+            this.drawAt(ctx, this.x, this.y + canvas.height);
+        } else if (this.y > canvas.height - this.radius) {
+            this.drawAt(ctx, this.x, this.y - canvas.height);
+        }
+        
+        // Отрисовка в углах при пересечении обеих границ
+        if (this.x < this.radius && this.y < this.radius) {
+            this.drawAt(ctx, this.x + canvas.width, this.y + canvas.height);
+        } else if (this.x < this.radius && this.y > canvas.height - this.radius) {
+            this.drawAt(ctx, this.x + canvas.width, this.y - canvas.height);
+        } else if (this.x > canvas.width - this.radius && this.y < this.radius) {
+            this.drawAt(ctx, this.x - canvas.width, this.y + canvas.height);
+        } else if (this.x > canvas.width - this.radius && this.y > canvas.height - this.radius) {
+            this.drawAt(ctx, this.x - canvas.width, this.y - canvas.height);
+        }
+    }
+
+    drawAt(ctx, x, y) {
+        ctx.beginPath();
+        ctx.arc(x, y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this === player ? 'blue' : 'red';
+        ctx.fill();
+        ctx.closePath();
+    }
+}
+
+class Plant {
+    constructor(x, y, isBlack = false) {
+        this.x = x;
+        this.y = y;
+        this.hp = 5; 
+        this.size = 4;
+        this.isBlack = isBlack; // Новое свойство для черных растений
+    }
+
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = this.isBlack ? 'black' : 'green'; // Черные или зеленые
+        ctx.fill();
+        ctx.closePath();
+    }
+}
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const entities = [];
+const plants = [];
+let player;
+
+// В начале файла добавим новые константы
+const MAX_TOTAL_MASS = 50000; // Максимальная общая масса в игре
+const PLANT_SPAWN_INTERVAL = 100; // Интервал появления растений (в миллисекундах)
+const ENEMY_SPAWN_INTERVAL = 300; // Интервал появления противников (в миллисекундах)
+let lastPlantSpawnTime = 0; // Время последнего создания растения
+let lastEnemySpawnTime = 0; // Время последнего создания противника
+
+// Функция для подсчета общей массы в игре
+function getTotalMass() {
+    const entityMass = entities.reduce((sum, entity) => sum + entity.hp, 0);
+    const plantMass = plants.reduce((sum, plant) => sum + plant.hp, 0);
+    return entityMass + plantMass;
+}
+
+function drawMenu() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Заголовок
+    ctx.fillStyle = 'black';
+    ctx.font = '32px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Настройки игры', canvas.width / 2, 100);
+
+    // Отрисовка настроек
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'left';
+    const startX = canvas.width / 2 - 150;
+    
+    // Скорость
+    ctx.fillText(`Скорость: ${gameSettings.speed}`, startX, 200);
+    drawButton('speed-minus', startX + 250, 180, '-');
+    drawButton('speed-plus', startX + 300, 180, '+');
+
+    // Количество противников
+    ctx.fillText(`Противники: ${gameSettings.enemyCount}`, startX, 250);
+    drawButton('enemy-minus', startX + 250, 230, '-');
+    drawButton('enemy-plus', startX + 300, 230, '+');
+
+    // Количество растений
+    ctx.fillText(`Растения: ${gameSettings.plantCount}`, startX, 300);
+    drawButton('plant-minus', startX + 250, 280, '-');
+    drawButton('plant-plus', startX + 300, 280, '+');
+
+    // Добавим отображение настройки сложности после растений
+    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX, 350);
+    drawButton('diff-minus', startX + 250, 330, '-');
+    drawButton('diff-plus', startX + 300, 330, '+');
+
+    // Добавим отображение настройки максимальной массы после сложности
+    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX, 400);
+    drawButton('mass-minus', startX + 250, 380, '-');
+    drawButton('mass-plus', startX + 300, 380, '+');
+
+    // Сдвинем кнопку старта ниже
+    drawButton('start', canvas.width / 2 - 60, 450, 'Начать игру', 120, 40);
+}
+
+function drawButton(id, x, y, text, width = 40, height = 30) {
+    buttons[id] = { x, y, width, height };
+    ctx.fillStyle = 'lightgray';
+    ctx.fillRect(x, y, width, height);
+    ctx.fillStyle = 'black';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x + width/2, y + height/2 + 7);
+}
+
+const buttons = {};
+
+canvas.addEventListener('click', (e) => {
+    if (gameState !== 'menu') return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    Object.entries(buttons).forEach(([id, button]) => {
+        if (clickX >= button.x && clickX <= button.x + button.width &&
+            clickY >= button.y && clickY <= button.y + button.height) {
+            handleButtonClick(id);
+        }
+    });
+});
+
+function handleButtonClick(id) {
+    switch(id) {
+        case 'speed-minus':
+            gameSettings.speed = Math.max(0.2, gameSettings.speed - 0.2);
+            break;
+        case 'speed-plus':
+            gameSettings.speed = Math.min(3, gameSettings.speed + 0.2);
+            break;
+        case 'enemy-minus':
+            gameSettings.enemyCount = Math.max(1, gameSettings.enemyCount - 1);
+            break;
+        case 'enemy-plus':
+            gameSettings.enemyCount = Math.min(50, gameSettings.enemyCount + 1);
+            break;
+        case 'plant-minus':
+            gameSettings.plantCount = Math.max(1, gameSettings.plantCount - 1);
+            break;
+        case 'plant-plus':
+            gameSettings.plantCount = Math.min(100, gameSettings.plantCount + 1);
+            break;
+        case 'diff-minus':
+            gameSettings.difficulty = Math.max(0, gameSettings.difficulty - 5);
+            break;
+        case 'diff-plus':
+            gameSettings.difficulty = Math.min(100, gameSettings.difficulty + 5);
+            break;
+        case 'mass-minus':
+            gameSettings.maxMass = Math.max(5000, gameSettings.maxMass - 5000);
+            break;
+        case 'mass-plus':
+            gameSettings.maxMass = Math.min(100000, gameSettings.maxMass + 5000);
+            break;
+        case 'start':
+            startGame();
+            return;
+    }
+    saveSettings();
+}
+
+function startGame() {
+    gameState = 'game';
+    entities.length = 0;
+    plants.length = 0;
+    init();
+}
+
+function init() {
+    player = new Entity(canvas.width / 2, canvas.height / 2, 10);
+    entities.push(player);
+
+    // Создаем начальных существ
+    for (let i = 0; i < gameSettings.enemyCount; i++) {
+        spawnRandomEntity();
+    }
+
+    // Создаем начальные растения
+    for (let i = 0; i < gameSettings.plantCount; i++) {
+        spawnPlant();
+    }
+}
+
+function spawnRandomEntity() {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    
+    // Используем сложность как процент от максимально возможного размера
+    // При сложности 100% существа могут быть размером с игрока
+    // При сложности 0% существа будут минимального размера (20% от размера игрока)
+    const minSizePercent = gameSettings.difficulty / 160; // минимальный размер - 20% от размера игрока
+    const maxSizePercent = gameSettings.difficulty / 80; // максимальный процент зависит от сложности
+    
+    // Случайный размер между минимальным и максимальным
+    const sizePercent = minSizePercent + Math.random() * (maxSizePercent - minSizePercent);
+    const hp = player.hp * sizePercent;
+    
+    entities.push(new Entity(x, y, hp));
+}
+
+function spawnPlant() {
+    const x = Math.random() * (canvas.width - 10) + 5;
+    const y = Math.random() * (canvas.height - 10) + 5;
+    const isBlack = Math.random() < 0.1; // 10% шанс на черное растение
+    plants.push(new Plant(x, y, isBlack));
+}
+
+function moveEntity(entity) {
+    if (entity === player) return; // Игрок управляется клавишами
+
+    let targetX = entity.x;
+    let targetY = entity.y;
+    let nearestThreatDist = Infinity;
+    let bestPreyValue = 0;
+    let preyX = null;
+    let preyY = null;
+
+    // Ищем ближайшую цель (существо или растение)
+    [...entities, ...plants].forEach(target => {
+        if (target === entity) return;
+        
+        const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
+        if (dist < nearestThreatDist) {
+            const targetHp = target.hp || 0;
+            if ((targetHp < entity.hp && dist < 200) || target instanceof Plant) {
+                nearestThreatDist = dist;
+                targetX = target.x;
+                targetY = target.y;
+            } else if (targetHp > entity.hp && dist < 100) {
+                // Убегаем от больших существ
+                targetX = entity.x * 2 - target.x;
+                targetY = entity.y * 2 - target.y;
+            }
+        }
+    });
+
+    // Двигаемся к цели или от неё
+    const angle = Math.atan2(targetY - entity.y, targetX - entity.x);
+    entity.x += Math.cos(angle) * entity.speed;
+    entity.y += Math.sin(angle) * entity.speed;
+
+    // Улучшенный wrap around
+    if (entity.x < -entity.radius) entity.x += canvas.width;
+    if (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
+    if (entity.y < -entity.radius) entity.y += canvas.height;
+    if (entity.y > canvas.height + entity.radius) entity.y -= canvas.height;
+}
+
+function checkCollisions() {
+    // В начале функции добавим проверку и исправление позиций
+    entities.forEach(entity => {
+        // Принудительно возвращаем объекты в пределы экрана, если они вышли слишком далеко
+        while (entity.x < -entity.radius) entity.x += canvas.width;
+        while (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
+        while (entity.y < -entity.radius) entity.y += canvas.height;
+        while (entity.y > canvas.height + entity.radius) entity.y -= canvas.height;
+    });
+
+    plants.forEach(plant => {
+        while (plant.x < -plant.size) plant.x += canvas.width;
+        while (plant.x > canvas.width + plant.size) plant.x -= canvas.width;
+        while (plant.y < -plant.size) plant.y += canvas.height;
+        while (plant.y > canvas.height + plant.size) plant.y -= canvas.height;
+    });
+
+    for (let i = entities.length - 1; i >= 0; i--) {
+        const entity1 = entities[i];
+        
+        // Проверяем столкновения с растениями
+        for (let j = plants.length - 1; j >= 0; j--) {
+            const plant = plants[j];
+            const dist = Math.hypot(plant.x - entity1.x, plant.y - entity1.y);
+            if (dist < entity1.radius) {
+                entity1.hp += plant.hp;
+                entity1.radius = Math.sqrt(entity1.hp);
+                plants.splice(j, 1);
+                // Создаем новое растение взамен съеденного
+                spawnPlant();
+
+                // Если растение черное, замедляем существо
+                if (plant.isBlack) {
+                    slowDownEntity(entity1);
+                }
+            }
+        }
+
+        // Проверяем столкновения с другими существами
+        for (let j = i - 1; j >= 0; j--) {
+            const entity2 = entities[j];
+            const dist = Math.hypot(entity2.x - entity1.x, entity2.y - entity1.y);
+            
+            if (dist < entity1.radius + entity2.radius) {
+                if (entity1.hp > entity2.hp) {
+                    entity1.hp += entity2.hp / 2;
+                    entity1.radius = Math.sqrt(entity1.hp);
+                    entities.splice(j, 1);
+                    if (entity2 === player) {
+                        gameOver();
+                    }
+                } else {
+                    entity2.hp += entity1.hp / 2;
+                    entity2.radius = Math.sqrt(entity2.hp);
+                    entities.splice(i, 1);
+                    if (entity1 === player) {
+                        gameOver();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
+function gameOver() {
+    gameState = 'menu';
+    // Удаляем сброс настроек
+    // gameSettings = {...defaultSettings};
+}
+
+let keys = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false
+};
+
+window.addEventListener('keydown', (e) => {
+    if (keys.hasOwnProperty(e.key)) {
+        keys[e.key] = true;
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    if (keys.hasOwnProperty(e.key)) {
+        keys[e.key] = false;
+    }
+});
+
+let joystick = {
+    active: false,
+    startX: 0,
+    startY: 0,
+    moveX: 0,
+    moveY: 0,
+    radius: 50
+};
+
+// Функция для адаптации размера канваса
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+// Добавляем обработчик изменения размера окна
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', resizeCanvas);
+
+// Обработчики тач-событий
+canvas.addEventListener('touchstart', handleTouchStart);
+canvas.addEventListener('touchmove', handleTouchMove);
+canvas.addEventListener('touchend', handleTouchEnd);
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    joystick.startX = touch.clientX - rect.left;
+    joystick.startY = touch.clientY - rect.top;
+    joystick.moveX = joystick.startX;
+    joystick.moveY = joystick.startY;
+    joystick.active = true;
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (!joystick.active) return;
+
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    joystick.moveX = touch.clientX - rect.left;
+    joystick.moveY = touch.clientY - rect.top;
+
+    // Ограничиваем движение джойстика
+    const dx = joystick.moveX - joystick.startX;
+    const dy = joystick.moveY - joystick.startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > joystick.radius) {
+        joystick.moveX = joystick.startX + (dx / distance) * joystick.radius;
+        joystick.moveY = joystick.startY + (dy / distance) * joystick.radius;
+    }
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    joystick.active = false;
+}
+
+// Модифицируем функцию movePlayer
+function movePlayer() {
+    if (joystick.active) {
+        // Движение на основе джойстика
+        const dx = joystick.moveX - joystick.startX;
+        const dy = joystick.moveY - joystick.startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+            const speed = player.speed * (distance / joystick.radius);
+            player.x += (dx / distance) * speed;
+            player.y += (dy / distance) * speed;
+        }
+    } else {
+        // Существующее управление клавиатурой
+        if (keys.ArrowUp) player.y -= player.speed;
+        if (keys.ArrowDown) player.y += player.speed;
+        if (keys.ArrowLeft) player.x -= player.speed;
+        if (keys.ArrowRight) player.x += player.speed;
+    }
+
+    // Wrap around остается без изменений
+    if (player.x < -player.radius) player.x += canvas.width;
+    if (player.x > canvas.width + player.radius) player.x -= canvas.width;
+    if (player.y < -player.radius) player.y += canvas.height;
+    if (player.y > canvas.height + player.radius) player.y -= canvas.height;
+}
+
+// Добавляем отрисовку джойстика в функцию drawUI
+function drawUI() {
+    ctx.fillStyle = 'black';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Масса: ${Math.floor(player.hp)}`, 10, 30);
+    ctx.fillText(`Общая масса: ${Math.floor(getTotalMass())}`, 10, 60);
+
+    // Отрисовка джойстика
+    if (joystick.active) {
+        // Внешний круг
+        ctx.beginPath();
+        ctx.arc(joystick.startX, joystick.startY, joystick.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Внутренний круг (положение джойстика)
+        ctx.beginPath();
+        ctx.arc(joystick.moveX, joystick.moveY, 20, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fill();
+    }
+}
+
+function gameLoop() {
+    if (gameState === 'menu') {
+        drawMenu();
+    } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const currentTime = Date.now();
+        const totalMass = getTotalMass();
+
+        // Используем значение из настроек вместо константы
+        if (currentTime - lastEnemySpawnTime > ENEMY_SPAWN_INTERVAL && 
+            entities.length < gameSettings.enemyCount + 1 && 
+            totalMass < gameSettings.maxMass) {
+            spawnRandomEntity();
+            lastEnemySpawnTime = currentTime;
+        }
+
+        if (currentTime - lastPlantSpawnTime > PLANT_SPAWN_INTERVAL && 
+            plants.length < gameSettings.plantCount && 
+            totalMass < gameSettings.maxMass) {
+            spawnPlant();
+            lastPlantSpawnTime = currentTime;
+        }
+
+        movePlayer();
+        entities.forEach(moveEntity);
+        checkCollisions();
+
+        // Отрисовка
+        plants.forEach(plant => plant.draw(ctx));
+        entities.forEach(entity => entity.draw(ctx));
+        drawUI();
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+// Запускаем игру с меню
+gameLoop(); 
+
+function slowDownEntity(entity) {
+    // Если существо уже замедлено, игнорируем
+    if (entity.isSlowed) return;
+
+    const originalSpeed = entity.speed;
+    entity.speed *= 0.5;
+    entity.isSlowed = true;
+
+    setTimeout(() => {
+        entity.speed = originalSpeed;
+        entity.isSlowed = false;
+    }, 1000);
+} 
+
+// Вызываем resizeCanvas при инициализации
+resizeCanvas(); 
