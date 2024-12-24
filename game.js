@@ -3,7 +3,7 @@ const STORAGE_KEY = 'gameSettings';
 
 // Настройки игры по умолчанию
 const defaultSettings = {
-    speed: 1.5,
+    speed: 100,
     enemyCount: 20,
     plantCount: 40,
     difficulty: 30,
@@ -40,9 +40,19 @@ class Entity {
         this.x = x;
         this.y = y;
         this.hp = hp;
-        this.radius = Math.sqrt(hp);
-        this.speed = gameSettings.speed * 0.5;
-        this.isSlowed = false; // Добавляем флаг замедления
+        this.radius = this.calculateRadius(hp);
+        this.speed = (gameSettings.speed / 100) * 2;
+        this.isSlowed = false;
+    }
+
+    calculateRadius(hp) {
+        // Размер как логарифм по основанию 2 от массы
+        // Добавляем 1 к hp перед логарифмом, чтобы избежать отрицательных значений при hp < 1
+        return Math.max(2, Math.log2(hp + 1));
+    }
+
+    updateRadius() {
+        this.radius = this.calculateRadius(this.hp);
     }
 
     draw(ctx) {
@@ -135,7 +145,7 @@ function drawMenu() {
     const startX = canvas.width / 2 - 150;
     
     // Скорость
-    ctx.fillText(`Скорость: ${gameSettings.speed}`, startX, 200);
+    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX, 200);
     drawButton('speed-minus', startX + 250, 180, '-');
     drawButton('speed-plus', startX + 300, 180, '+');
 
@@ -212,10 +222,10 @@ canvas.addEventListener('click', (e) => {
 function handleButtonClick(id) {
     switch(id) {
         case 'speed-minus':
-            gameSettings.speed = Math.max(0.2, gameSettings.speed - 0.2);
+            gameSettings.speed = Math.max(20, gameSettings.speed - 5);
             break;
         case 'speed-plus':
-            gameSettings.speed = Math.min(3, gameSettings.speed + 0.2);
+            gameSettings.speed = Math.min(200, gameSettings.speed + 5);
             break;
         case 'enemy-minus':
             gameSettings.enemyCount = Math.max(1, gameSettings.enemyCount - 1);
@@ -277,8 +287,8 @@ function spawnRandomEntity() {
     // Используем сложность как процент от максимально возможного размера
     // При сложности 100% существа могут быть размером с игрока
     // При сложности 0% существа будут минимального размера (20% от размера игрока)
-    const minSizePercent = gameSettings.difficulty / 160; // минимальный размер - 20% от размера игрока
-    const maxSizePercent = gameSettings.difficulty / 80; // максимальный процент зависит от сложности
+    const minSizePercent = gameSettings.difficulty /100 * 0.5; // минимальный размер - 20% от размера игрока
+    const maxSizePercent = gameSettings.difficulty /100 * 2; // максимальный процент зависит от сложности
     
     // Случайный размер между минимальным и максимальным
     const sizePercent = minSizePercent + Math.random() * (maxSizePercent - minSizePercent);
