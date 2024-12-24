@@ -1,5 +1,7 @@
 // В начале файла, перед defaultSettings
 const STORAGE_KEY = 'gameSettings';
+const BEST_SCORE_KEY = 'bestScore';
+const LAST_SCORE_KEY = 'lastScore';
 
 // Настройки игры по умолчанию
 const defaultSettings = {
@@ -33,6 +35,23 @@ function saveSettings() {
     } catch (e) {
         console.error('Ошибка при сохранении настроек:', e);
     }
+}
+
+function saveScore(score) {
+    const bestScore = getBestScore();
+    localStorage.setItem(LAST_SCORE_KEY, score);
+    
+    if (score > bestScore) {
+        localStorage.setItem(BEST_SCORE_KEY, score);
+    }
+}
+
+function getBestScore() {
+    return parseInt(localStorage.getItem(BEST_SCORE_KEY)) || 0;
+}
+
+function getLastScore() {
+    return parseInt(localStorage.getItem(LAST_SCORE_KEY)) || 0;
 }
 
 class Entity {
@@ -171,11 +190,18 @@ function drawMenu() {
     ctx.fillStyle = 'black';
     ctx.font = '32px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Настройки игры', canvas.width / 2, 100);
+    ctx.fillText('Игра Жизнь', canvas.width / 2, 100);
 
     // Версия
     ctx.font = '16px Arial';
     ctx.fillText('Версия 0.43', canvas.width / 2, 130);
+
+    // Результаты
+    const bestScore = getBestScore();
+    const lastScore = getLastScore();
+    ctx.font = '20px Arial';
+    ctx.fillText(`Лучший результат: ${bestScore}`, canvas.width / 2, 160);
+    ctx.fillText(`Последний результат: ${lastScore}`, canvas.width / 2, 185);
 
     // Отрисовка настроек
     ctx.font = '24px Arial';
@@ -183,32 +209,32 @@ function drawMenu() {
     const startX = canvas.width / 2 - 150;
     
     // Скорость
-    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX - 23, 200,);
-    drawButton('speed-minus', startX + 250, 180, '-');
-    drawButton('speed-plus', startX + 300, 180, '+');
+    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX - 23, 250);
+    drawButton('speed-minus', startX + 250, 230, '-');
+    drawButton('speed-plus', startX + 300, 230, '+');
 
     // Количество противников
-    ctx.fillText(`Противники: ${gameSettings.enemyCount}`, startX + 50, 250);
-    drawButton('enemy-minus', startX + 250, 230, '-');
-    drawButton('enemy-plus', startX + 300, 230, '+');
+    ctx.fillText(`Противники: ${gameSettings.enemyCount}`, startX + 50, 300);
+    drawButton('enemy-minus', startX + 250, 280, '-');
+    drawButton('enemy-plus', startX + 300, 280, '+');
 
     // Количество растений
-    ctx.fillText(`Растения: ${gameSettings.plantCount}`, startX + 45, 300);
-    drawButton('plant-minus', startX + 250, 280, '-');
-    drawButton('plant-plus', startX + 300, 280, '+');
+    ctx.fillText(`Растения: ${gameSettings.plantCount}`, startX + 45, 350);
+    drawButton('plant-minus', startX + 250, 330, '-');
+    drawButton('plant-plus', startX + 300, 330, '+');
 
     // Сложность
-    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX + 60, 350);
-    drawButton('diff-minus', startX + 250, 330, '-');
-    drawButton('diff-plus', startX + 300, 330, '+');
+    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX + 60, 400);
+    drawButton('diff-minus', startX + 250, 380, '-');
+    drawButton('diff-plus', startX + 300, 380, '+');
 
     // Максимальная масса
-    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX + 74, 400);
-    drawButton('mass-minus', startX + 250, 380, '-');
-    drawButton('mass-plus', startX + 300, 380, '+');
+    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX + 74, 450);
+    drawButton('mass-minus', startX + 250, 430, '-');
+    drawButton('mass-plus', startX + 300, 430, '+');
 
     // Сдвинем кнопку старта ниже
-    drawButton('start', canvas.width / 2 - 60, 450, 'Начать игру', 120, 40);
+    drawButton('start', canvas.width / 2 - 60, 500, 'Начать игру', 120, 40);
 }
 
 function drawButton(id, x, y, text, width = 40, height = 30) {
@@ -331,7 +357,7 @@ function spawnRandomEntity() {
         distanceToPlayer = Math.hypot(x - player.x, y - player.y);
     } while (distanceToPlayer < MIN_SAFE_DISTANCE);
     
-    // Используем сложность как процент от максимально возможного размера
+    // Используем сложность как процент от максималь��о возможного размера
     const minSizePercent = -0.7 + gameSettings.difficulty/100;
     const maxSizePercent = 0.3 + gameSettings.difficulty/100;
     
@@ -388,7 +414,7 @@ function moveEntity(entity) {
                 }
             ];
 
-            // Находим кратчайшее расстояние
+            // Находим крачайшее расстояние
             const shortestPath = distances.reduce((shortest, current) => {
                 const dist = Math.hypot(current.dx, current.dy);
                 return dist < shortest.dist ? { dist, dx: current.dx, dy: current.dy } : shortest;
@@ -453,7 +479,7 @@ function checkCollisions() {
             // Проверяем столкновения с растениями
             for (let j = plants.length - 1; j >= 0; j--) {
                 const plant = plants[j];
-                const dist = Math.hypot(plant.x - entity1.x, plant.y - entity1.y);
+                const dist = getMinDistance(entity1.x, entity1.y, plant.x, plant.y);
                 if (dist < entity1.radius + plant.radius) {
                     entity1.hp += plant.hp;
                     entity1.updateRadius();
@@ -471,19 +497,19 @@ function checkCollisions() {
             // Проверяем столкновения с другими существами
             for (let j = i - 1; j >= 0; j--) {
                 const entity2 = entities[j];
-                const dist = Math.hypot(entity2.x - entity1.x, entity2.y - entity1.y);
+                const dist = getMinDistance(entity1.x, entity1.y, entity2.x, entity2.y);
                 
                 if (dist < entity1.radius + entity2.radius) {
                     if (entity1.hp > entity2.hp) {
                         entity1.hp += entity2.hp / 2;
-                        entity1.updateRadius(); // Обновляем радиус после изменения hp
+                        entity1.updateRadius();
                         entities.splice(j, 1);
                         if (entity2 === player) {
                             gameOver();
                         }
                     } else {
                         entity2.hp += entity1.hp / 2;
-                        entity2.updateRadius(); // Обновляем радиус после изменения hp
+                        entity2.updateRadius();
                         entities.splice(i, 1);
                         if (entity1 === player) {
                             gameOver();
@@ -498,12 +524,23 @@ function checkCollisions() {
     }
 }
 
-function gameOver() {
-    gameState = 'menu';
-    // Удаляем сброс настроек
-    // gameSettings = {...defaultSettings};
+// Добавляем новую вспомогательную функцию для расчета минимального расстояния с учетом wrap-around
+function getMinDistance(x1, y1, x2, y2) {
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    
+    // Учитываем wrap-around по X
+    const wrappedDx = Math.min(dx, canvas.width - dx);
+    // Учитываем wrap-around по Y
+    const wrappedDy = Math.min(dy, canvas.height - dy);
+    
+    return Math.hypot(wrappedDx, wrappedDy);
 }
 
+function gameOver() {
+    saveScore(Math.floor(player.hp));
+    gameState = 'menu';
+}
 let keys = {
     ArrowUp: false,
     ArrowDown: false,
@@ -659,6 +696,13 @@ function gameLoop() {
                 return;
             }
 
+            // Проверка на отсутствие врагов
+            if (entities.length === 1 && entities[0] === player) {
+                console.log('Victory! No enemies left');
+                gameOver();
+                return;
+            }
+
             // Логирование состояния каждые 5 секунд
             if (Date.now() % 5000 < 16) {
                 console.log('Game state:', {
@@ -736,3 +780,4 @@ function slowDownEntity(entity) {
 
 // Вызываем resizeCanvas при инициализации
 resizeCanvas(); 
+
