@@ -3,10 +3,10 @@ const STORAGE_KEY = 'gameSettings';
 
 // Настройки игры по умолчанию
 const defaultSettings = {
-    speed: 80,
+    speed: 100,
     enemyCount: 25,
     plantCount: 80,
-    difficulty: 70,
+    difficulty: 100,
     maxMass: 100000  // Добавляем настройку максимальной массы
 };
 
@@ -41,7 +41,7 @@ class Entity {
         this.y = y;
         this.hp = hp;
         this.radius = this.calculateRadius(hp);
-        this.speed = (gameSettings.speed / 100) * 1;
+        this.speed = (gameSettings.speed / 100) * 0.5;
         this.isSlowed = false;
     }
 
@@ -263,7 +263,7 @@ function handleButtonClick(id) {
             gameSettings.speed = Math.max(20, gameSettings.speed - 5);
             break;
         case 'speed-plus':
-            gameSettings.speed = Math.min(200, gameSettings.speed + 5);
+            gameSettings.speed = Math.min(400, gameSettings.speed + 5);
             break;
         case 'enemy-minus':
             gameSettings.enemyCount = Math.max(1, gameSettings.enemyCount - 1);
@@ -332,8 +332,8 @@ function spawnRandomEntity() {
     } while (distanceToPlayer < MIN_SAFE_DISTANCE);
     
     // Используем сложность как процент от максимально возможного размера
-    const minSizePercent = -0.5 + gameSettings.difficulty/100;
-    const maxSizePercent = 0.5 + gameSettings.difficulty/100;
+    const minSizePercent = -0.7 + gameSettings.difficulty/100;
+    const maxSizePercent = 0.3 + gameSettings.difficulty/100;
     
     const sizePercent = minSizePercent + Math.random() * (maxSizePercent - minSizePercent);
     const hp = Math.max(1, player.hp * sizePercent);
