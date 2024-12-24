@@ -155,22 +155,22 @@ function drawMenu() {
     drawButton('speed-plus', startX + 300, 180, '+');
 
     // Количество противников
-    ctx.fillText(`Противники: ${gameSettings.enemyCount}`, startX, 250);
+    ctx.fillText(`       Противники: ${gameSettings.enemyCount}`, startX, 250);
     drawButton('enemy-minus', startX + 250, 230, '-');
     drawButton('enemy-plus', startX + 300, 230, '+');
 
     // Количество растений
-    ctx.fillText(`Растения: ${gameSettings.plantCount}`, startX, 300);
+    ctx.fillText(`      Растения: ${gameSettings.plantCount}`, startX, 300);
     drawButton('plant-minus', startX + 250, 280, '-');
     drawButton('plant-plus', startX + 300, 280, '+');
 
     // Добавим отображение настройки сложности после растений
-    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX, 350);
+    ctx.fillText(`        Сложность: ${gameSettings.difficulty}%`, startX, 350);
     drawButton('diff-minus', startX + 250, 330, '-');
     drawButton('diff-plus', startX + 300, 330, '+');
 
     // Добавим отображение настройки максимальной массы после сложности
-    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX, 400);
+    ctx.fillText(`             Макс. масса: ${gameSettings.maxMass}`, startX, 400);
     drawButton('mass-minus', startX + 250, 380, '-');
     drawButton('mass-plus', startX + 300, 380, '+');
 
