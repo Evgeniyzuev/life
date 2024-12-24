@@ -3,11 +3,11 @@ const STORAGE_KEY = 'gameSettings';
 
 // Настройки игры по умолчанию
 const defaultSettings = {
-    speed: 100,
-    enemyCount: 20,
-    plantCount: 40,
-    difficulty: 30,
-    maxMass: 30000  // Добавляем настройку максимальной массы
+    speed: 60,
+    enemyCount: 25,
+    plantCount: 80,
+    difficulty: 50,
+    maxMass: 100000  // Добавляем настройку максимальной массы
 };
 
 // Загружаем сохраненные настройки или используем значения по умолчанию
@@ -103,11 +103,45 @@ class Plant {
     }
 
     draw(ctx) {
+        // Основное тело
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = this.isBlack ? 'black' : 'green'; // Черные или зеленые
+        ctx.fillStyle = this.isBlack ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 150, 0, 0.8)';
         ctx.fill();
-        ctx.closePath();
+
+        // Добавляем "отростки"
+        const numberOfSpikes = 5;
+        const spikeLength = this.size * 1.5;
+        
+        for (let i = 0; i < numberOfSpikes; i++) {
+            const angle = (Math.PI * 2 * i / numberOfSpikes) + Math.sin(Date.now() / 1000 + i) * 0.2;
+            
+            ctx.beginPath();
+            ctx.moveTo(
+                this.x + this.size * Math.cos(angle),
+                this.y + this.size * Math.sin(angle)
+            );
+            
+            // Контрольные точки для кривой Безье
+            const cp1x = this.x + spikeLength * 1.2 * Math.cos(angle - 0.2);
+            const cp1y = this.y + spikeLength * 1.2 * Math.sin(angle - 0.2);
+            const cp2x = this.x + spikeLength * 0.8 * Math.cos(angle + 0.2);
+            const cp2y = this.y + spikeLength * 0.8 * Math.sin(angle + 0.2);
+            const endX = this.x + spikeLength * Math.cos(angle);
+            const endY = this.y + spikeLength * Math.sin(angle);
+
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
+            
+            ctx.strokeStyle = this.isBlack ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 120, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // Внутренняя часть (ядро)
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = this.isBlack ? 'rgba(40, 40, 40, 0.8)' : 'rgba(0, 180, 0, 0.8)';
+        ctx.fill();
     }
 }
 
@@ -127,8 +161,7 @@ let lastEnemySpawnTime = 0; // Время последнего создания 
 // Функция для подсчета общей массы в игре
 function getTotalMass() {
     const entityMass = entities.reduce((sum, entity) => sum + entity.hp, 0);
-    const plantMass = plants.reduce((sum, plant) => sum + plant.hp, 0);
-    return entityMass + plantMass;
+    return entityMass;
 }
 
 function drawMenu() {
@@ -150,7 +183,7 @@ function drawMenu() {
     const startX = canvas.width / 2 - 150;
     
     // Скорость
-    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX - 26, 200,);
+    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX - 23, 200,);
     drawButton('speed-minus', startX + 250, 180, '-');
     drawButton('speed-plus', startX + 300, 180, '+');
 
@@ -165,12 +198,12 @@ function drawMenu() {
     drawButton('plant-plus', startX + 300, 280, '+');
 
     // Сложность
-    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX + 53, 350);
+    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX + 60, 350);
     drawButton('diff-minus', startX + 250, 330, '-');
     drawButton('diff-plus', startX + 300, 330, '+');
 
     // Максимальная масса
-    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX + 72, 400);
+    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX + 74, 400);
     drawButton('mass-minus', startX + 250, 380, '-');
     drawButton('mass-plus', startX + 300, 380, '+');
 
@@ -248,7 +281,7 @@ function handleButtonClick(id) {
             gameSettings.difficulty = Math.max(0, gameSettings.difficulty - 5);
             break;
         case 'diff-plus':
-            gameSettings.difficulty = Math.min(100, gameSettings.difficulty + 5);
+            gameSettings.difficulty = Math.min(200, gameSettings.difficulty + 5);
             break;
         case 'mass-minus':
             gameSettings.maxMass = Math.max(5000, gameSettings.maxMass - 5000);
@@ -286,16 +319,24 @@ function init() {
 }
 
 function spawnRandomEntity() {
-    const x = Math.random() * canvas.width;
-    const y = Math.random() * canvas.height;
+    // Минимальное безопасное расстояние от игрока
+    const MIN_SAFE_DISTANCE = 100;
+    
+    let x, y, distanceToPlayer;
+    
+    // Пытаемся найти подходящую позицию
+    do {
+        x = Math.random() * canvas.width;
+        y = Math.random() * canvas.height;
+        distanceToPlayer = Math.hypot(x - player.x, y - player.y);
+    } while (distanceToPlayer < MIN_SAFE_DISTANCE);
     
     // Используем сложность как процент от максимально возможного размера
-    const minSizePercent = 0.2; // минимальный размер - 20% от размера игрока
-    const maxSizePercent = (gameSettings.difficulty / 100) * 2; // максимальный процент зависит от сложности
+    const minSizePercent = -0.5 + gameSettings.difficulty/100;
+    const maxSizePercent = 0.5 + gameSettings.difficulty/100;
     
-    // Случайный размер между минимальным и максимальным
     const sizePercent = minSizePercent + Math.random() * (maxSizePercent - minSizePercent);
-    const hp = Math.max(1, player.hp * sizePercent); // Минимальная масса 1
+    const hp = Math.max(1, player.hp * sizePercent);
     
     entities.push(new Entity(x, y, hp));
 }
@@ -313,7 +354,7 @@ function moveEntity(entity) {
             console.error('Invalid entity in movement:', entity);
             return;
         }
-        if (entity === player) return; // Игрок управляется к��авишами
+        if (entity === player) return; // Игрок управляется клавишами
 
         let targetX = entity.x;
         let targetY = entity.y;
@@ -346,7 +387,7 @@ function moveEntity(entity) {
         entity.x += Math.cos(angle) * entity.speed;
         entity.y += Math.sin(angle) * entity.speed;
 
-        // Улуч��енный wrap around
+        // Улучшенный wrap around
         if (entity.x < -entity.radius) entity.x += canvas.width;
         if (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
         if (entity.y < -entity.radius) entity.y += canvas.height;
