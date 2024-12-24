@@ -175,6 +175,25 @@ function drawButton(id, x, y, text, width = 40, height = 30) {
 
 const buttons = {};
 
+// Добавим обработчик тач-событий для меню
+canvas.addEventListener('touchstart', (e) => {
+    if (gameState !== 'menu') return;
+
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+
+    Object.entries(buttons).forEach(([id, button]) => {
+        if (touchX >= button.x && touchX <= button.x + button.width &&
+            touchY >= button.y && touchY <= button.y + button.height) {
+            handleButtonClick(id);
+        }
+    });
+}, { passive: false });
+
+// Обновим существующий обработчик кликов, чтобы он работал и с мышью
 canvas.addEventListener('click', (e) => {
     if (gameState !== 'menu') return;
 
@@ -415,22 +434,9 @@ let joystick = {
     radius: 50
 };
 
-// Функция для адаптации размера канваса
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-
-// Добавляем обработчик изменения размера окна
-window.addEventListener('resize', resizeCanvas);
-window.addEventListener('orientationchange', resizeCanvas);
-
-// Обработчики тач-событий
-canvas.addEventListener('touchstart', handleTouchStart);
-canvas.addEventListener('touchmove', handleTouchMove);
-canvas.addEventListener('touchend', handleTouchEnd);
-
-function handleTouchStart(e) {
+// Обработчики тач-событий с выводом в консоль для отладки
+canvas.addEventListener('touchstart', function(e) {
+    console.log('Touch start');
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
@@ -439,9 +445,10 @@ function handleTouchStart(e) {
     joystick.moveX = joystick.startX;
     joystick.moveY = joystick.startY;
     joystick.active = true;
-}
+}, { passive: false });
 
-function handleTouchMove(e) {
+canvas.addEventListener('touchmove', function(e) {
+    console.log('Touch move');
     e.preventDefault();
     if (!joystick.active) return;
 
@@ -459,17 +466,58 @@ function handleTouchMove(e) {
         joystick.moveX = joystick.startX + (dx / distance) * joystick.radius;
         joystick.moveY = joystick.startY + (dy / distance) * joystick.radius;
     }
-}
+}, { passive: false });
 
-function handleTouchEnd(e) {
+canvas.addEventListener('touchend', function(e) {
+    console.log('Touch end');
     e.preventDefault();
     joystick.active = false;
+}, { passive: false });
+
+// Функция отрисовки UI с более заметным джойстиком
+function drawUI() {
+    // Отрисовка статистики
+    ctx.fillStyle = 'black';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Масса: ${Math.floor(player.hp)}`, 10, 30);
+    ctx.fillText(`Общая масса: ${Math.floor(getTotalMass())}`, 10, 60);
+
+    // Отрисовка джойстика с более заметными цветами
+    if (joystick.active) {
+        // Внешний круг (более заметный)
+        ctx.beginPath();
+        ctx.arc(joystick.startX, joystick.startY, joystick.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Внутренний круг (более заметный)
+        ctx.beginPath();
+        ctx.arc(joystick.moveX, joystick.moveY, 25, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
 }
 
-// Модифицируем функцию movePlayer
+// Функция изменения размера канваса
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    console.log('Canvas resized:', canvas.width, canvas.height);
+}
+
+// Вызываем resizeCanvas при загрузке и изменении размера окна
+window.addEventListener('load', resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', resizeCanvas);
+
+// Убедимся, что функция movePlayer использует джойстик
 function movePlayer() {
     if (joystick.active) {
-        // Движение на основе джойстика
         const dx = joystick.moveX - joystick.startX;
         const dy = joystick.moveY - joystick.startY;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -480,43 +528,18 @@ function movePlayer() {
             player.y += (dy / distance) * speed;
         }
     } else {
-        // Существующее управление клавиатурой
+        // Стандартное управление клавиатурой
         if (keys.ArrowUp) player.y -= player.speed;
         if (keys.ArrowDown) player.y += player.speed;
         if (keys.ArrowLeft) player.x -= player.speed;
         if (keys.ArrowRight) player.x += player.speed;
     }
 
-    // Wrap around остается без изменений
+    // Wrap around
     if (player.x < -player.radius) player.x += canvas.width;
     if (player.x > canvas.width + player.radius) player.x -= canvas.width;
     if (player.y < -player.radius) player.y += canvas.height;
     if (player.y > canvas.height + player.radius) player.y -= canvas.height;
-}
-
-// Добавляем отрисовку джойстика в функцию drawUI
-function drawUI() {
-    ctx.fillStyle = 'black';
-    ctx.font = '20px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Масса: ${Math.floor(player.hp)}`, 10, 30);
-    ctx.fillText(`Общая масса: ${Math.floor(getTotalMass())}`, 10, 60);
-
-    // Отрисовка джойстика
-    if (joystick.active) {
-        // Внешний круг
-        ctx.beginPath();
-        ctx.arc(joystick.startX, joystick.startY, joystick.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Внутренний круг (положение джойстика)
-        ctx.beginPath();
-        ctx.arc(joystick.moveX, joystick.moveY, 20, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fill();
-    }
 }
 
 function gameLoop() {
