@@ -97,7 +97,8 @@ class Plant {
         this.x = x;
         this.y = y;
         this.hp = 1;  // Каждое растение дает 1 массу
-        this.size = 4;
+        this.size = 6; // Визуальный размер
+        this.radius = 8; // Размер для коллизий
         this.isBlack = isBlack;
     }
 
@@ -141,7 +142,7 @@ function drawMenu() {
 
     // Версия
     ctx.font = '16px Arial';
-    ctx.fillText('Версия 0.4', canvas.width / 2, 130);
+    ctx.fillText('Версия 0.41', canvas.width / 2, 130);
 
     // Отрисовка настроек
     ctx.font = '24px Arial';
@@ -384,9 +385,9 @@ function checkCollisions() {
             for (let j = plants.length - 1; j >= 0; j--) {
                 const plant = plants[j];
                 const dist = Math.hypot(plant.x - entity1.x, plant.y - entity1.y);
-                if (dist < entity1.radius) {
+                if (dist < entity1.radius + plant.radius) {
                     entity1.hp += plant.hp;
-                    entity1.updateRadius(); // Обновляем радиус после изменения hp
+                    entity1.updateRadius();
                     plants.splice(j, 1);
                     // Создаем новое растение взамен съеденного
                     spawnPlant();
