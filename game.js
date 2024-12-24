@@ -357,7 +357,7 @@ function spawnRandomEntity() {
         distanceToPlayer = Math.hypot(x - player.x, y - player.y);
     } while (distanceToPlayer < MIN_SAFE_DISTANCE);
     
-    // Используем сложность как процент от максималь��о возможного размера
+    // Используем сложность как процент от максимально возможного размера
     const minSizePercent = -0.7 + gameSettings.difficulty/100;
     const maxSizePercent = 0.3 + gameSettings.difficulty/100;
     
@@ -652,22 +652,41 @@ window.addEventListener('orientationchange', resizeCanvas);
 
 // Убедимся, что функция movePlayer использует джойстик
 function movePlayer() {
+    // Проверяем наличие крупных врагов поблизости
+    const DANGER_DISTANCE = 75; // Расстояние, на котором активируется бонус
+    const SPEED_BOOST = 1.1; // Бонус к скорости (10%)
+    
+    let isInDanger = false;
+    
+    // Проверяем всех врагов
+    entities.forEach(entity => {
+        if (entity !== player) {
+            const dist = getMinDistance(player.x, player.y, entity.x, entity.y);
+            if (dist < DANGER_DISTANCE && entity.hp > player.hp) {
+                isInDanger = true;
+            }
+        }
+    });
+
+    // Применяем базовую или увеличенную скорость
+    const currentSpeed = player.speed * (isInDanger ? SPEED_BOOST : 1);
+
     if (joystick.active) {
         const dx = joystick.moveX - joystick.startX;
         const dy = joystick.moveY - joystick.startY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance > 0) {
-            const speed = player.speed * (distance / joystick.radius);
+            const speed = currentSpeed * (distance / joystick.radius);
             player.x += (dx / distance) * speed;
             player.y += (dy / distance) * speed;
         }
     } else {
         // Стандартное управление клавиатурой
-        if (keys.ArrowUp) player.y -= player.speed;
-        if (keys.ArrowDown) player.y += player.speed;
-        if (keys.ArrowLeft) player.x -= player.speed;
-        if (keys.ArrowRight) player.x += player.speed;
+        if (keys.ArrowUp) player.y -= currentSpeed;
+        if (keys.ArrowDown) player.y += currentSpeed;
+        if (keys.ArrowLeft) player.x -= currentSpeed;
+        if (keys.ArrowRight) player.x += currentSpeed;
     }
 
     // Wrap around
