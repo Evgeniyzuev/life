@@ -142,7 +142,7 @@ function drawMenu() {
 
     // Версия
     ctx.font = '16px Arial';
-    ctx.fillText('Версия 0.41', canvas.width / 2, 130);
+    ctx.fillText('Версия 0.43', canvas.width / 2, 130);
 
     // Отрисовка настроек
     ctx.font = '24px Arial';
@@ -150,27 +150,27 @@ function drawMenu() {
     const startX = canvas.width / 2 - 150;
     
     // Скорость
-    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX, 200);
+    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX - 26, 200,);
     drawButton('speed-minus', startX + 250, 180, '-');
     drawButton('speed-plus', startX + 300, 180, '+');
 
     // Количество противников
-    ctx.fillText(`       Противники: ${gameSettings.enemyCount}`, startX, 250);
+    ctx.fillText(`Противники: ${gameSettings.enemyCount}`, startX + 50, 250);
     drawButton('enemy-minus', startX + 250, 230, '-');
     drawButton('enemy-plus', startX + 300, 230, '+');
 
     // Количество растений
-    ctx.fillText(`      Растения: ${gameSettings.plantCount}`, startX, 300);
+    ctx.fillText(`Растения: ${gameSettings.plantCount}`, startX + 45, 300);
     drawButton('plant-minus', startX + 250, 280, '-');
     drawButton('plant-plus', startX + 300, 280, '+');
 
-    // Добавим отображение настройки сложности после растений
-    ctx.fillText(`        Сложность: ${gameSettings.difficulty}%`, startX, 350);
+    // Сложность
+    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX + 53, 350);
     drawButton('diff-minus', startX + 250, 330, '-');
     drawButton('diff-plus', startX + 300, 330, '+');
 
-    // Добавим отображение настройки максимальной массы после сложности
-    ctx.fillText(`             Макс. масса: ${gameSettings.maxMass}`, startX, 400);
+    // Максимальная масса
+    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX + 72, 400);
     drawButton('mass-minus', startX + 250, 380, '-');
     drawButton('mass-plus', startX + 300, 380, '+');
 
@@ -313,7 +313,7 @@ function moveEntity(entity) {
             console.error('Invalid entity in movement:', entity);
             return;
         }
-        if (entity === player) return; // Игрок управляется клавишами
+        if (entity === player) return; // Игрок управляется к��авишами
 
         let targetX = entity.x;
         let targetY = entity.y;
@@ -346,7 +346,7 @@ function moveEntity(entity) {
         entity.x += Math.cos(angle) * entity.speed;
         entity.y += Math.sin(angle) * entity.speed;
 
-        // Улучшенный wrap around
+        // Улуч��енный wrap around
         if (entity.x < -entity.radius) entity.x += canvas.width;
         if (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
         if (entity.y < -entity.radius) entity.y += canvas.height;
