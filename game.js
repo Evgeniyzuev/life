@@ -41,14 +41,14 @@ class Entity {
         this.y = y;
         this.hp = hp;
         this.radius = this.calculateRadius(hp);
-        this.speed = (gameSettings.speed / 100) * 2;
+        this.speed = (gameSettings.speed / 100) * 1;
         this.isSlowed = false;
     }
 
     calculateRadius(hp) {
         // Размер как логарифм по основанию 2 от массы
         // Добавляем 1 к hp перед логарифмом, чтобы избежать отрицательных значений при hp < 1
-        return Math.max(2, Math.log2(hp + 1));
+        return hp**(1/3)*2+2;
     }
 
     updateRadius() {
@@ -96,9 +96,9 @@ class Plant {
     constructor(x, y, isBlack = false) {
         this.x = x;
         this.y = y;
-        this.hp = 5; 
+        this.hp = 1;  // Каждое растение дает 1 массу
         this.size = 4;
-        this.isBlack = isBlack; // Новое свойство для черных растений
+        this.isBlack = isBlack;
     }
 
     draw(ctx) {
@@ -138,6 +138,10 @@ function drawMenu() {
     ctx.font = '32px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('Настройки игры', canvas.width / 2, 100);
+
+    // Версия
+    ctx.font = '16px Arial';
+    ctx.fillText('Версия 0.4', canvas.width / 2, 130);
 
     // Отрисовка настроек
     ctx.font = '24px Arial';
@@ -266,7 +270,7 @@ function startGame() {
 }
 
 function init() {
-    player = new Entity(canvas.width / 2, canvas.height / 2, 10);
+    player = new Entity(canvas.width / 2, canvas.height / 2, 1); // Стартовая масса 1
     entities.push(player);
 
     // Создаем начальных существ
@@ -285,14 +289,12 @@ function spawnRandomEntity() {
     const y = Math.random() * canvas.height;
     
     // Используем сложность как процент от максимально возможного размера
-    // При сложности 100% существа могут быть размером с игрока
-    // При сложности 0% существа будут минимального размера (20% от размера игрока)
-    const minSizePercent = gameSettings.difficulty /100 * 0.5; // минимальный размер - 20% от размера игрока
-    const maxSizePercent = gameSettings.difficulty /100 * 2; // максимальный процент зависит от сложности
+    const minSizePercent = 0.2; // минимальный размер - 20% от размера игрока
+    const maxSizePercent = (gameSettings.difficulty / 100) * 2; // максимальный процент зависит от сложности
     
     // Случайный размер между минимальным и максимальным
     const sizePercent = minSizePercent + Math.random() * (maxSizePercent - minSizePercent);
-    const hp = player.hp * sizePercent;
+    const hp = Math.max(1, player.hp * sizePercent); // Минимальная масса 1
     
     entities.push(new Entity(x, y, hp));
 }
@@ -305,108 +307,124 @@ function spawnPlant() {
 }
 
 function moveEntity(entity) {
-    if (entity === player) return; // Игрок управляется клавишами
-
-    let targetX = entity.x;
-    let targetY = entity.y;
-    let nearestThreatDist = Infinity;
-    let bestPreyValue = 0;
-    let preyX = null;
-    let preyY = null;
-
-    // Ищем ближайшую цель (существо или растение)
-    [...entities, ...plants].forEach(target => {
-        if (target === entity) return;
-        
-        const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
-        if (dist < nearestThreatDist) {
-            const targetHp = target.hp || 0;
-            if ((targetHp < entity.hp && dist < 200) || target instanceof Plant) {
-                nearestThreatDist = dist;
-                targetX = target.x;
-                targetY = target.y;
-            } else if (targetHp > entity.hp && dist < 100) {
-                // Убегаем от больших существ
-                targetX = entity.x * 2 - target.x;
-                targetY = entity.y * 2 - target.y;
-            }
+    try {
+        if (!entity || isNaN(entity.x) || isNaN(entity.y)) {
+            console.error('Invalid entity in movement:', entity);
+            return;
         }
-    });
+        if (entity === player) return; // Игрок управляется клавишами
 
-    // Двигаемся к цели или от неё
-    const angle = Math.atan2(targetY - entity.y, targetX - entity.x);
-    entity.x += Math.cos(angle) * entity.speed;
-    entity.y += Math.sin(angle) * entity.speed;
+        let targetX = entity.x;
+        let targetY = entity.y;
+        let nearestThreatDist = Infinity;
+        let bestPreyValue = 0;
+        let preyX = null;
+        let preyY = null;
 
-    // Улучшенный wrap around
-    if (entity.x < -entity.radius) entity.x += canvas.width;
-    if (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
-    if (entity.y < -entity.radius) entity.y += canvas.height;
-    if (entity.y > canvas.height + entity.radius) entity.y -= canvas.height;
+        // Ищем ближайшую цель (существо или растение)
+        [...entities, ...plants].forEach(target => {
+            if (target === entity) return;
+            
+            const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
+            if (dist < nearestThreatDist) {
+                const targetHp = target.hp || 0;
+                if ((targetHp < entity.hp && dist < 200) || target instanceof Plant) {
+                    nearestThreatDist = dist;
+                    targetX = target.x;
+                    targetY = target.y;
+                } else if (targetHp > entity.hp && dist < 100) {
+                    // Убегаем от больших существ
+                    targetX = entity.x * 2 - target.x;
+                    targetY = entity.y * 2 - target.y;
+                }
+            }
+        });
+
+        // Двигаемся к цели или от неё
+        const angle = Math.atan2(targetY - entity.y, targetX - entity.x);
+        entity.x += Math.cos(angle) * entity.speed;
+        entity.y += Math.sin(angle) * entity.speed;
+
+        // Улучшенный wrap around
+        if (entity.x < -entity.radius) entity.x += canvas.width;
+        if (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
+        if (entity.y < -entity.radius) entity.y += canvas.height;
+        if (entity.y > canvas.height + entity.radius) entity.y -= canvas.height;
+    } catch (error) {
+        console.error('Entity movement error:', error);
+    }
 }
 
 function checkCollisions() {
-    // В начале функции добавим проверку и исправление позиций
-    entities.forEach(entity => {
-        // Принудительно возвращаем объекты в пределы экрана, если они вышли слишком далеко
-        while (entity.x < -entity.radius) entity.x += canvas.width;
-        while (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
-        while (entity.y < -entity.radius) entity.y += canvas.height;
-        while (entity.y > canvas.height + entity.radius) entity.y -= canvas.height;
-    });
-
-    plants.forEach(plant => {
-        while (plant.x < -plant.size) plant.x += canvas.width;
-        while (plant.x > canvas.width + plant.size) plant.x -= canvas.width;
-        while (plant.y < -plant.size) plant.y += canvas.height;
-        while (plant.y > canvas.height + plant.size) plant.y -= canvas.height;
-    });
-
-    for (let i = entities.length - 1; i >= 0; i--) {
-        const entity1 = entities[i];
-        
-        // Проверяем столкновения с растениями
-        for (let j = plants.length - 1; j >= 0; j--) {
-            const plant = plants[j];
-            const dist = Math.hypot(plant.x - entity1.x, plant.y - entity1.y);
-            if (dist < entity1.radius) {
-                entity1.hp += plant.hp;
-                entity1.radius = Math.sqrt(entity1.hp);
-                plants.splice(j, 1);
-                // Создаем новое растение взамен съеденного
-                spawnPlant();
-
-                // Если растение черное, замедляем существо
-                if (plant.isBlack) {
-                    slowDownEntity(entity1);
-                }
+    try {
+        // В начале функции добавим проверку и исправление позиций
+        entities.forEach(entity => {
+            if (!entity || isNaN(entity.x) || isNaN(entity.y)) {
+                console.error('Invalid entity in collisions:', entity);
+                return;
             }
-        }
+            // Принудительно возвращаем объекты в пределы экрана, если они вышли слишком далеко
+            while (entity.x < -entity.radius) entity.x += canvas.width;
+            while (entity.x > canvas.width + entity.radius) entity.x -= canvas.width;
+            while (entity.y < -entity.radius) entity.y += canvas.height;
+            while (entity.y > canvas.height + entity.radius) entity.y -= canvas.height;
+        });
 
-        // Проверяем столкновения с другими существами
-        for (let j = i - 1; j >= 0; j--) {
-            const entity2 = entities[j];
-            const dist = Math.hypot(entity2.x - entity1.x, entity2.y - entity1.y);
+        plants.forEach(plant => {
+            while (plant.x < -plant.size) plant.x += canvas.width;
+            while (plant.x > canvas.width + plant.size) plant.x -= canvas.width;
+            while (plant.y < -plant.size) plant.y += canvas.height;
+            while (plant.y > canvas.height + plant.size) plant.y -= canvas.height;
+        });
+
+        for (let i = entities.length - 1; i >= 0; i--) {
+            const entity1 = entities[i];
             
-            if (dist < entity1.radius + entity2.radius) {
-                if (entity1.hp > entity2.hp) {
-                    entity1.hp += entity2.hp / 2;
-                    entity1.radius = Math.sqrt(entity1.hp);
-                    entities.splice(j, 1);
-                    if (entity2 === player) {
-                        gameOver();
+            // Проверяем столкновения с растениями
+            for (let j = plants.length - 1; j >= 0; j--) {
+                const plant = plants[j];
+                const dist = Math.hypot(plant.x - entity1.x, plant.y - entity1.y);
+                if (dist < entity1.radius) {
+                    entity1.hp += plant.hp;
+                    entity1.updateRadius(); // Обновляем радиус после изменения hp
+                    plants.splice(j, 1);
+                    // Создаем новое растение взамен съеденного
+                    spawnPlant();
+
+                    // Если растение черное, замедляем существо
+                    if (plant.isBlack) {
+                        slowDownEntity(entity1);
                     }
-                } else {
-                    entity2.hp += entity1.hp / 2;
-                    entity2.radius = Math.sqrt(entity2.hp);
-                    entities.splice(i, 1);
-                    if (entity1 === player) {
-                        gameOver();
+                }
+            }
+
+            // Проверяем столкновения с другими существами
+            for (let j = i - 1; j >= 0; j--) {
+                const entity2 = entities[j];
+                const dist = Math.hypot(entity2.x - entity1.x, entity2.y - entity1.y);
+                
+                if (dist < entity1.radius + entity2.radius) {
+                    if (entity1.hp > entity2.hp) {
+                        entity1.hp += entity2.hp / 2;
+                        entity1.updateRadius(); // Обновляем радиус после изменения hp
+                        entities.splice(j, 1);
+                        if (entity2 === player) {
+                            gameOver();
+                        }
+                    } else {
+                        entity2.hp += entity1.hp / 2;
+                        entity2.updateRadius(); // Обновляем радиус после изменения hp
+                        entities.splice(i, 1);
+                        if (entity1 === player) {
+                            gameOver();
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         }
+    } catch (error) {
+        console.error('Collision check error:', error);
     }
 }
 
@@ -553,37 +571,77 @@ function movePlayer() {
 }
 
 function gameLoop() {
-    if (gameState === 'menu') {
-        drawMenu();
-    } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try {
+        if (gameState === 'menu') {
+            drawMenu();
+        } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const currentTime = Date.now();
-        const totalMass = getTotalMass();
+            // Проверка состояния игры
+            if (!player || !entities.includes(player)) {
+                console.error('Player lost:', { 
+                    player: player,
+                    entities: entities.length,
+                    plants: plants.length,
+                    totalMass: getTotalMass()
+                });
+                gameOver();
+                return;
+            }
 
-        // Используем значение из настроек вместо константы
-        if (currentTime - lastEnemySpawnTime > ENEMY_SPAWN_INTERVAL && 
-            entities.length < gameSettings.enemyCount + 1 && 
-            totalMass < gameSettings.maxMass) {
-            spawnRandomEntity();
-            lastEnemySpawnTime = currentTime;
+            // Логирование состояния каждые 5 секунд
+            if (Date.now() % 5000 < 16) {
+                console.log('Game state:', {
+                    entities: entities.length,
+                    plants: plants.length,
+                    playerMass: player.hp,
+                    totalMass: getTotalMass(),
+                    canvasSize: { w: canvas.width, h: canvas.height }
+                });
+            }
+
+            const currentTime = Date.now();
+            const totalMass = getTotalMass();
+
+            if (currentTime - lastEnemySpawnTime > ENEMY_SPAWN_INTERVAL && 
+                entities.length < gameSettings.enemyCount + 1 && 
+                totalMass < gameSettings.maxMass) {
+                spawnRandomEntity();
+                lastEnemySpawnTime = currentTime;
+            }
+
+            if (currentTime - lastPlantSpawnTime > PLANT_SPAWN_INTERVAL && 
+                plants.length < gameSettings.plantCount && 
+                totalMass < gameSettings.maxMass) {
+                spawnPlant();
+                lastPlantSpawnTime = currentTime;
+            }
+
+            // Проверка позиций всех объектов
+            entities.forEach(entity => {
+                if (isNaN(entity.x) || isNaN(entity.y) || isNaN(entity.radius)) {
+                    console.error('Invalid entity:', entity);
+                }
+            });
+
+            movePlayer();
+            entities.forEach(moveEntity);
+            checkCollisions();
+
+            // Отрисовка
+            plants.forEach(plant => plant.draw(ctx));
+            entities.forEach(entity => entity.draw(ctx));
+            drawUI();
         }
-
-        if (currentTime - lastPlantSpawnTime > PLANT_SPAWN_INTERVAL && 
-            plants.length < gameSettings.plantCount && 
-            totalMass < gameSettings.maxMass) {
-            spawnPlant();
-            lastPlantSpawnTime = currentTime;
-        }
-
-        movePlayer();
-        entities.forEach(moveEntity);
-        checkCollisions();
-
-        // Отрисовка
-        plants.forEach(plant => plant.draw(ctx));
-        entities.forEach(entity => entity.draw(ctx));
-        drawUI();
+    } catch (error) {
+        console.error('Game loop error:', error);
+        console.log('Game state at error:', {
+            gameState,
+            entities: entities.length,
+            plants: plants.length,
+            player: player,
+            canvas: { width: canvas.width, height: canvas.height }
+        });
     }
 
     requestAnimationFrame(gameLoop);
