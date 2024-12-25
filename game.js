@@ -23,7 +23,7 @@ function loadSettings() {
         try {
             return JSON.parse(savedSettings);
         } catch (e) {
-            console.error('Ошибка при загрузке настроек:', e);
+            return {...defaultSettings};
         }
     }
     return {...defaultSettings};
@@ -33,7 +33,7 @@ function saveSettings() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(gameSettings));
     } catch (e) {
-        console.error('Ошибка при сохранении настроек:', e);
+        // Молча игнорируем ошибку
     }
 }
 
@@ -115,9 +115,9 @@ class Plant {
     constructor(x, y, isBlack = false) {
         this.x = x;
         this.y = y;
-        this.hp = 1;  // Каждое растение дает 1 массу
-        this.size = 6; // Размер для эмодзи
-        this.radius = 8; // Размер для коллизий
+        this.hp = isBlack ? 3 : 1;  // Черное растение дает 3 массы, обычное - 1
+        this.size = 8;
+        this.radius = 8;
         this.isBlack = isBlack;
     }
 
@@ -126,7 +126,7 @@ class Plant {
         ctx.font = `${this.size * 2}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(this.isBlack ? '🫐' : '🍏', this.x, this.y);
+        ctx.fillText(this.isBlack ? '⚫️' : '🟢', this.x, this.y);
         // ctx.globalAlpha = 1.0; // Возвращаем нормальную прозрачность для остальных элементов
     }
 }
@@ -161,7 +161,7 @@ function drawMenu() {
 
     // Версия
     ctx.font = '16px Arial';
-    ctx.fillText('0.52', canvas.width / 2, 130);
+    ctx.fillText('0.53', canvas.width / 2, 130);
 
     // Результаты
     const bestScore = getBestScore();
@@ -169,6 +169,14 @@ function drawMenu() {
     ctx.font = '20px Arial';
     ctx.fillText(`Best score: ${bestScore}`, canvas.width / 2, 160);
     ctx.fillText(`Last score: ${lastScore}`, canvas.width / 2, 185);
+
+    // Проверяем victory в localStorage
+    if (localStorage.getItem('victory') === 'true') {
+        ctx.fillStyle = '#4CAF50'; // Зеленый цвет
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText('Winner!', canvas.width / 2, 215);
+        ctx.fillStyle = 'black'; // Возвращаем черный цвет для остального текста
+    }
 
     // Отрисовка настроек
     ctx.font = '24px Arial';
@@ -278,10 +286,10 @@ function handleButtonClick(id) {
             gameSettings.enemyCount = Math.min(50, gameSettings.enemyCount + 1);
             break;
         case 'plant-minus':
-            gameSettings.plantCount = Math.max(1, gameSettings.plantCount - 1);
+            gameSettings.plantCount = Math.max(1, gameSettings.plantCount - 5);
             break;
         case 'plant-plus':
-            gameSettings.plantCount = Math.min(300, gameSettings.plantCount + 1);
+            gameSettings.plantCount = Math.min(400, gameSettings.plantCount + 5);
             break;
         case 'diff-minus':
             gameSettings.difficulty = Math.max(0, gameSettings.difficulty - 5);
@@ -298,9 +306,6 @@ function handleButtonClick(id) {
         case 'start':
             startGame();
             return;
-        case 'to-menu':
-            gameState = 'menu';
-            break;
     }
     saveSettings();
 }
@@ -309,6 +314,7 @@ function startGame() {
     gameState = 'game';
     entities.length = 0;
     plants.length = 0;
+    localStorage.setItem('victory', 'false'); // Сбрасываем флаг победы при старте новой игры
     init();
 }
 
@@ -328,7 +334,7 @@ function init() {
 }
 
 function spawnRandomEntity() {
-    // Минимальное безопасное расстояние от и��рока
+    // Минимальное безопасное расстояние от ирока
     const MIN_SAFE_DISTANCE = 100;
     
     let x, y, distanceToPlayer;
@@ -360,7 +366,6 @@ function spawnPlant() {
 function moveEntity(entity) {
     try {
         if (!entity || isNaN(entity.x) || isNaN(entity.y)) {
-            console.error('Invalid entity in movement:', entity);
             return;
         }
         if (entity === player) return; // Игрок управляется клавишами
@@ -403,16 +408,22 @@ function moveEntity(entity) {
                 return dist < shortest.dist ? { dist, dx: current.dx, dy: current.dy } : shortest;
             }, { dist: Infinity, dx: 0, dy: 0 });
 
-            if (shortestPath.dist < nearestThreatDist) {
+            // Учитываем радиусы существ при расчете дистанции
+            const effectiveDistance = shortestPath.dist - entity.radius - (target.radius || 0);
+
+            if (effectiveDistance < nearestThreatDist) {
                 const targetHp = target.hp || 0;
-                if ((targetHp < entity.hp && shortestPath.dist < 200) || target instanceof Plant) {
+                // Увеличиваем дистанцию обнаружения с учетом размера существа
+                const detectionRange = 200 + entity.radius;
+                
+                if ((targetHp < entity.hp && effectiveDistance < detectionRange) || target instanceof Plant) {
                     // Движение к добыче
-                    nearestThreatDist = shortestPath.dist;
+                    nearestThreatDist = effectiveDistance;
                     targetX = entity.x + shortestPath.dx;
                     targetY = entity.y + shortestPath.dy;
-                } else if (targetHp > entity.hp && shortestPath.dist < 100) {
-                    // Убегание от угрозы через ближайший путь (включая границы)
-                    nearestThreatDist = shortestPath.dist;
+                } else if (targetHp > entity.hp && effectiveDistance < detectionRange / 2) {
+                    // Убегание от угрозы
+                    nearestThreatDist = effectiveDistance;
                     targetX = entity.x - shortestPath.dx;
                     targetY = entity.y - shortestPath.dy;
                 }
@@ -430,7 +441,7 @@ function moveEntity(entity) {
         if (entity.y < -entity.radius) entity.y += canvas.height;
         if (entity.y > canvas.height + entity.radius) entity.y -= canvas.height;
     } catch (error) {
-        console.error('Entity movement error:', error);
+        // Молча игнорируем ошибку
     }
 }
 
@@ -439,7 +450,6 @@ function checkCollisions() {
         // В начале функции добавим проверку и исправление позиций
         entities.forEach(entity => {
             if (!entity || isNaN(entity.x) || isNaN(entity.y)) {
-                console.error('Invalid entity in collisions:', entity);
                 return;
             }
             // Принудительно возвращаем объекты в пределы экрана, если они вышли слишком далеко
@@ -478,6 +488,14 @@ function checkCollisions() {
             }
 
             // Проверяем столкновения с другими существами
+            if (player.hp > gameSettings.maxMass / 2) {
+                const finalScore = Math.floor(player.hp);
+                saveScore(finalScore);
+                // сохранить игроку победу в локальное хранилище
+                localStorage.setItem('victory', 'true');
+                gameState = 'menu';
+            }
+
             for (let j = i - 1; j >= 0; j--) {
                 const entity2 = entities[j];
                 const dist = getMinDistance(entity1.x, entity1.y, entity2.x, entity2.y);
@@ -488,14 +506,18 @@ function checkCollisions() {
                         entity1.updateRadius();
                         entities.splice(j, 1);
                         if (entity2 === player) {
-                            gameOver();
+                            const finalScore = Math.floor(player.hp);
+                            saveScore(finalScore);
+                            gameState = 'menu';
                         }
                     } else {
                         entity2.hp += entity1.hp / 2;
                         entity2.updateRadius();
                         entities.splice(i, 1);
                         if (entity1 === player) {
-                            gameOver();
+                            const finalScore = Math.floor(player.hp);
+                            saveScore(finalScore);
+                            gameState = 'menu';
                         }
                         break;
                     }
@@ -503,7 +525,7 @@ function checkCollisions() {
             }
         }
     } catch (error) {
-        console.error('Collision check error:', error);
+        // Молча игнорируем ошибку
     }
 }
 
@@ -518,49 +540,6 @@ function getMinDistance(x1, y1, x2, y2) {
     const wrappedDy = Math.min(dy, canvas.height - dy);
     
     return Math.hypot(wrappedDx, wrappedDy);
-}
-
-function gameOver(isVictory = false) {
-    const finalScore = Math.floor(player.hp);
-    saveScore(finalScore);
-    
-    // Очищаем экран
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Настройки текста
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'black';
-    
-    if (isVictory) {
-        // Экран победы
-        ctx.font = 'bold 48px Arial';
-        ctx.fillText('Winner!', canvas.width / 2, canvas.height / 2 - 60);
-        
-        ctx.font = '32px Arial';
-        ctx.fillText(`Score: ${finalScore}`, canvas.width / 2, canvas.height / 2);
-        ctx.fillText(`Best Score: ${getBestScore()}`, canvas.width / 2, canvas.height / 2 + 40);
-        
-        // Кнопка возврата в меню
-        ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(canvas.width / 2 - 60, canvas.height / 2 + 80, 120, 40);
-        ctx.fillStyle = 'white';
-        ctx.font = '20px Arial';
-        ctx.fillText('В меню', canvas.width / 2, canvas.height / 2 + 105);
-
-        // Сохраняем координаты кнопки для обработки кликов
-        buttons['to-menu'] = { 
-            x: canvas.width / 2 - 60, 
-            y: canvas.height / 2 + 80, 
-            width: 120, 
-            height: 40 
-        };
-    }
-    
-    if (!isVictory) {
-        gameState = 'menu';
-    } else {
-        gameState = 'victory';
-    }
 }
 
 let keys = {
@@ -593,7 +572,6 @@ let joystick = {
 
 // Обработчики тач-событий с выводом в консоль для отладки
 canvas.addEventListener('touchstart', function(e) {
-    console.log('Touch start');
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
@@ -605,7 +583,6 @@ canvas.addEventListener('touchstart', function(e) {
 }, { passive: false });
 
 canvas.addEventListener('touchmove', function(e) {
-    console.log('Touch move');
     e.preventDefault();
     if (!joystick.active) return;
 
@@ -626,7 +603,6 @@ canvas.addEventListener('touchmove', function(e) {
 }, { passive: false });
 
 canvas.addEventListener('touchend', function(e) {
-    console.log('Touch end');
     e.preventDefault();
     joystick.active = false;
 }, { passive: false });
@@ -664,7 +640,6 @@ function drawUI() {
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    console.log('Canvas resized:', canvas.width, canvas.height);
 }
 
 // Вызываем resizeCanvas при загрузке и изменении размера окна
@@ -674,7 +649,7 @@ window.addEventListener('orientationchange', resizeCanvas);
 
 // Убедимся, что функция movePlayer использует джойстик
 function movePlayer() {
-    // Проверяем наличие крупных врагов поблизости
+    // Проверяем наличие крупных врагов полизости
     const DANGER_DISTANCE = 150; // Расстояние, на котором активируется бонус
     const SPEED_BOOST = 1.1; // Бонус к скорости (10%)
     
@@ -724,40 +699,21 @@ function gameLoop() {
     try {
         if (gameState === 'menu') {
             drawMenu();
-        } else if (gameState === 'victory') {
-            // Просто перерисовываем экран победы
-            gameOver(true);
         } else {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Проверка состояния игры
-            if (!player || !entities.includes(player)) {
-                console.error('Player lost:', { 
-                    player: player,
-                    entities: entities.length,
-                    plants: plants.length,
-                    totalMass: getTotalMass()
-                });
-                gameOver(false);
-                return;
-            }
-
-            // Проверка на победу
-            if (entities.length === 1 && entities[0] === player) {
-                console.log('Victory! No enemies left');
-                gameOver(true);
-                return;
-            }
-
-            // Логирование состояния каждые 5 секунд
-            // if (Date.now() % 5000 < 16) {
-            //     console.log('Game state:', {
+            // if (!player || !entities.includes(player)) {
+            //     console.error('Player lost:', { 
+            //         player: player,
             //         entities: entities.length,
             //         plants: plants.length,
-            //         playerMass: player.hp,
-            //         totalMass: getTotalMass(),
-            //         canvasSize: { w: canvas.width, h: canvas.height }
+            //         totalMass: getTotalMass()
             //     });
+            //     const finalScore = Math.floor(player.hp);
+            //     saveScore(finalScore);
+            //     gameState = 'menu';
+            //     return;
             // }
 
             const currentTime = Date.now();
@@ -778,11 +734,11 @@ function gameLoop() {
             }
 
             // Проверка позиций всех объектов
-            entities.forEach(entity => {
-                if (isNaN(entity.x) || isNaN(entity.y) || isNaN(entity.radius)) {
-                    console.error('Invalid entity:', entity);
-                }
-            });
+            // entities.forEach(entity => {
+            //     if (isNaN(entity.x) || isNaN(entity.y) || isNaN(entity.radius)) {
+            //         console.error('Invalid entity:', entity);
+            //     }
+            // });
 
             movePlayer();
             entities.forEach(moveEntity);
@@ -794,14 +750,7 @@ function gameLoop() {
             drawUI();
         }
     } catch (error) {
-        console.error('Game loop error:', error);
-        console.log('Game state at error:', {
-            gameState,
-            entities: entities.length,
-            plants: plants.length,
-            player: player,
-            canvas: { width: canvas.width, height: canvas.height }
-        });
+        // Молча игнорируем ошибку
     }
 
     requestAnimationFrame(gameLoop);
