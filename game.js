@@ -190,18 +190,18 @@ function drawMenu() {
     ctx.fillStyle = 'black';
     ctx.font = '32px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Игра Жизнь', canvas.width / 2, 100);
+    ctx.fillText('Simple Life', canvas.width / 2, 100);
 
     // Версия
     ctx.font = '16px Arial';
-    ctx.fillText('Версия 0.43', canvas.width / 2, 130);
+    ctx.fillText('0.49', canvas.width / 2, 130);
 
     // Результаты
     const bestScore = getBestScore();
     const lastScore = getLastScore();
     ctx.font = '20px Arial';
-    ctx.fillText(`Лучший результат: ${bestScore}`, canvas.width / 2, 160);
-    ctx.fillText(`Последний результат: ${lastScore}`, canvas.width / 2, 185);
+    ctx.fillText(`Best score: ${bestScore}`, canvas.width / 2, 160);
+    ctx.fillText(`Last score: ${lastScore}`, canvas.width / 2, 185);
 
     // Отрисовка настроек
     ctx.font = '24px Arial';
@@ -209,32 +209,32 @@ function drawMenu() {
     const startX = canvas.width / 2 - 150;
     
     // Скорость
-    ctx.fillText(`Скорость: ${gameSettings.speed}%`, startX - 23, 250);
+    ctx.fillText(`Speed: ${gameSettings.speed}%`, startX - 6, 250);
     drawButton('speed-minus', startX + 250, 230, '-');
     drawButton('speed-plus', startX + 300, 230, '+');
 
     // Количество противников
-    ctx.fillText(`Противники: ${gameSettings.enemyCount}`, startX + 50, 300);
+    ctx.fillText(`Enemies: ${gameSettings.enemyCount}`, startX + 50, 300);
     drawButton('enemy-minus', startX + 250, 280, '-');
     drawButton('enemy-plus', startX + 300, 280, '+');
 
     // Количество растений
-    ctx.fillText(`Растения: ${gameSettings.plantCount}`, startX + 45, 350);
+    ctx.fillText(`Plants: ${gameSettings.plantCount}`, startX + 45, 350);
     drawButton('plant-minus', startX + 250, 330, '-');
     drawButton('plant-plus', startX + 300, 330, '+');
 
     // Сложность
-    ctx.fillText(`Сложность: ${gameSettings.difficulty}%`, startX + 60, 400);
+    ctx.fillText(`Difficulty: ${gameSettings.difficulty}%`, startX + 60, 400);
     drawButton('diff-minus', startX + 250, 380, '-');
     drawButton('diff-plus', startX + 300, 380, '+');
 
     // Максимальная масса
-    ctx.fillText(`Макс. масса: ${gameSettings.maxMass}`, startX + 74, 450);
+    ctx.fillText(`Max mass: ${gameSettings.maxMass}`, startX + 80, 450);
     drawButton('mass-minus', startX + 250, 430, '-');
     drawButton('mass-plus', startX + 300, 430, '+');
 
     // Сдвинем кнопку старта ниже
-    drawButton('start', canvas.width / 2 - 60, 500, 'Начать игру', 120, 40);
+    drawButton('start', canvas.width / 2 - 60, 500, 'Start game', 120, 40);
 }
 
 function drawButton(id, x, y, text, width = 40, height = 30) {
@@ -333,7 +333,7 @@ function init() {
     player = new Entity(canvas.width / 2, canvas.height / 2, 1); // Стартовая масса 1
     entities.push(player);
 
-    // Создаем начальных существ
+    // Создаем начальных сущ��ств
     for (let i = 0; i < gameSettings.enemyCount; i++) {
         spawnRandomEntity();
     }
@@ -358,8 +358,8 @@ function spawnRandomEntity() {
     } while (distanceToPlayer < MIN_SAFE_DISTANCE);
     
     // Используем сложность как процент от максимально возможного размера
-    const minSizePercent = -0.7 + gameSettings.difficulty/100;
-    const maxSizePercent = 0.3 + gameSettings.difficulty/100;
+    const minSizePercent = 0.01 + gameSettings.difficulty/100/2;
+    const maxSizePercent = 0.5 + gameSettings.difficulty/100;
     
     const sizePercent = minSizePercent + Math.random() * (maxSizePercent - minSizePercent);
     const hp = Math.max(1, player.hp * sizePercent);
@@ -487,7 +487,7 @@ function checkCollisions() {
                     // Создаем новое растение взамен съеденного
                     spawnPlant();
 
-                    // Если растение черное, замедляем существо
+                    // Если р����стение черное, замедляем существо
                     if (plant.isBlack) {
                         slowDownEntity(entity1);
                     }
@@ -537,10 +537,48 @@ function getMinDistance(x1, y1, x2, y2) {
     return Math.hypot(wrappedDx, wrappedDy);
 }
 
-function gameOver() {
-    saveScore(Math.floor(player.hp));
-    gameState = 'menu';
+function gameOver(isVictory = false) {
+    const finalScore = Math.floor(player.hp);
+    saveScore(finalScore);
+    
+    // Очищаем экран
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Настройки текста
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'black';
+    
+    if (isVictory) {
+        // Экран победы
+        ctx.font = 'bold 48px Arial';
+        ctx.fillText('Winner!', canvas.width / 2, canvas.height / 2 - 60);
+        
+        ctx.font = '32px Arial';
+        ctx.fillText(`Score: ${finalScore}`, canvas.width / 2, canvas.height / 2);
+        ctx.fillText(`Best Score: ${getBestScore()}`, canvas.width / 2, canvas.height / 2 + 40);
+        
+        // Добавим подсказку
+        ctx.font = '24px Arial';
+        ctx.fillText('Click anywhere to continue', canvas.width / 2, canvas.height / 2 + 100);
+    }
+    
+    // Через 2 секунды или по клику переходим в меню
+    const clickHandler = () => {
+        canvas.removeEventListener('click', clickHandler);
+        canvas.removeEventListener('touchstart', clickHandler);
+        gameState = 'menu';
+    };
+    
+    canvas.addEventListener('click', clickHandler);
+    canvas.addEventListener('touchstart', clickHandler);
+    
+    if (!isVictory) {
+        gameState = 'menu';
+    } else {
+        gameState = 'victory';
+    }
 }
+
 let keys = {
     ArrowUp: false,
     ArrowDown: false,
@@ -611,7 +649,7 @@ canvas.addEventListener('touchend', function(e) {
 
 // Функция отрисовки UI с более заметным джойстиком
 function drawUI() {
-    // Отрисовка статистики
+    // Отрисовка стат��стики
     ctx.fillStyle = 'black';
     ctx.font = '20px Arial';
     ctx.textAlign = 'left';
@@ -653,20 +691,22 @@ window.addEventListener('orientationchange', resizeCanvas);
 // Убедимся, что функция movePlayer использует джойстик
 function movePlayer() {
     // Проверяем наличие крупных врагов поблизости
-    const DANGER_DISTANCE = 75; // Расстояние, на котором активируется бонус
+    const DANGER_DISTANCE = 150; // Расстояние, на котором активируется бонус
     const SPEED_BOOST = 1.1; // Бонус к скорости (10%)
     
     let isInDanger = false;
     
-    // Проверяем всех врагов
-    entities.forEach(entity => {
-        if (entity !== player) {
-            const dist = getMinDistance(player.x, player.y, entity.x, entity.y);
-            if (dist < DANGER_DISTANCE && entity.hp > player.hp) {
-                isInDanger = true;
+    // Проверяем всех врагов только если джойстик активен
+    if (joystick.active) {
+        entities.forEach(entity => {
+            if (entity !== player) {
+                const dist = getMinDistance(player.x, player.y, entity.x, entity.y);
+                if (dist < DANGER_DISTANCE && entity.hp > player.hp) {
+                    isInDanger = true;
+                }
             }
-        }
-    });
+        });
+    }
 
     // Применяем базовую или увеличенную скорость
     const currentSpeed = player.speed * (isInDanger ? SPEED_BOOST : 1);
@@ -682,11 +722,11 @@ function movePlayer() {
             player.y += (dy / distance) * speed;
         }
     } else {
-        // Стандартное управление клавиатурой
-        if (keys.ArrowUp) player.y -= currentSpeed;
-        if (keys.ArrowDown) player.y += currentSpeed;
-        if (keys.ArrowLeft) player.x -= currentSpeed;
-        if (keys.ArrowRight) player.x += currentSpeed;
+        // Стандартное управление клавиатурой всегда без бонуса
+        if (keys.ArrowUp) player.y -= player.speed;
+        if (keys.ArrowDown) player.y += player.speed;
+        if (keys.ArrowLeft) player.x -= player.speed;
+        if (keys.ArrowRight) player.x += player.speed;
     }
 
     // Wrap around
@@ -700,6 +740,9 @@ function gameLoop() {
     try {
         if (gameState === 'menu') {
             drawMenu();
+        } else if (gameState === 'victory') {
+            // Просто перерисовываем экран победы
+            gameOver(true);
         } else {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -711,14 +754,14 @@ function gameLoop() {
                     plants: plants.length,
                     totalMass: getTotalMass()
                 });
-                gameOver();
+                gameOver(false);
                 return;
             }
 
-            // Проверка на отсутствие врагов
+            // Проверка на победу
             if (entities.length === 1 && entities[0] === player) {
                 console.log('Victory! No enemies left');
-                gameOver();
+                gameOver(true);
                 return;
             }
 
