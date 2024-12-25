@@ -126,7 +126,7 @@ class Plant {
         ctx.font = `${this.size * 2}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(this.isBlack ? '�' : '🍏', this.x, this.y);
+        ctx.fillText(this.isBlack ? '🫐' : '🍏', this.x, this.y);
         // ctx.globalAlpha = 1.0; // Возвращаем нормальную прозрачность для остальных элементов
     }
 }
@@ -161,7 +161,7 @@ function drawMenu() {
 
     // Версия
     ctx.font = '16px Arial';
-    ctx.fillText('0.51', canvas.width / 2, 130);
+    ctx.fillText('0.52', canvas.width / 2, 130);
 
     // Результаты
     const bestScore = getBestScore();
