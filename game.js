@@ -122,12 +122,12 @@ class Plant {
     }
 
     draw(ctx) {
-        ctx.globalAlpha = 0.6; // Устанавливаем постоянную полупрозрачность
+        // ctx.globalAlpha = 0.6; // Устанавливаем постоянную полупрозрачность
         ctx.font = `${this.size * 2}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.isBlack ? '⚫' : '🟢', this.x, this.y);
-        ctx.globalAlpha = 1.0; // Возвращаем нормальную прозрачность для остальных элементов
+        // ctx.globalAlpha = 1.0; // Возвращаем нормальную прозрачность для остальных элементов
     }
 }
 
@@ -328,7 +328,7 @@ function init() {
 }
 
 function spawnRandomEntity() {
-    // Минимальное безопасное расстояние от игрока
+    // Минимальное безопасное расстояние от и��рока
     const MIN_SAFE_DISTANCE = 100;
     
     let x, y, distanceToPlayer;
@@ -834,6 +834,14 @@ style.textContent = `
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
         -webkit-user-select: none;
+        user-select: none;
+        touch-action: none;
+    }
+
+    body {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: rgba(0,0,0,0);
         user-select: none;
     }
 `;
