@@ -7,7 +7,7 @@ const LAST_SCORE_KEY = 'lastScore';
 const defaultSettings = {
     speed: 100,
     enemyCount: 25,
-    plantCount: 80,
+    plantCount: 100,
     difficulty: 100,
     maxMass: 100000  // Добавляем настройку максимальной массы
 };
@@ -116,51 +116,16 @@ class Plant {
         this.x = x;
         this.y = y;
         this.hp = 1;  // Каждое растение дает 1 массу
-        this.size = 6; // Визуальный размер
+        this.size = 8; // Размер для эмодзи
         this.radius = 8; // Размер для коллизий
         this.isBlack = isBlack;
     }
 
     draw(ctx) {
-        // Основное тело
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = this.isBlack ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 150, 0, 0.8)';
-        ctx.fill();
-
-        // Добавляем "отростки"
-        const numberOfSpikes = 5;
-        const spikeLength = this.size * 1.5;
-        
-        for (let i = 0; i < numberOfSpikes; i++) {
-            const angle = (Math.PI * 2 * i / numberOfSpikes) + Math.sin(Date.now() / 1000 + i) * 0.2;
-            
-            ctx.beginPath();
-            ctx.moveTo(
-                this.x + this.size * Math.cos(angle),
-                this.y + this.size * Math.sin(angle)
-            );
-            
-            // Контрольные точки для кривой Безье
-            const cp1x = this.x + spikeLength * 1.2 * Math.cos(angle - 0.2);
-            const cp1y = this.y + spikeLength * 1.2 * Math.sin(angle - 0.2);
-            const cp2x = this.x + spikeLength * 0.8 * Math.cos(angle + 0.2);
-            const cp2y = this.y + spikeLength * 0.8 * Math.sin(angle + 0.2);
-            const endX = this.x + spikeLength * Math.cos(angle);
-            const endY = this.y + spikeLength * Math.sin(angle);
-
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
-            
-            ctx.strokeStyle = this.isBlack ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 120, 0, 0.5)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-
-        // Внутренняя часть (ядро)
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = this.isBlack ? 'rgba(40, 40, 40, 0.8)' : 'rgba(0, 180, 0, 0.8)';
-        ctx.fill();
+        ctx.font = `${this.size * 2}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.isBlack ? '⚫' : '🟢', this.x, this.y);
     }
 }
 
@@ -228,7 +193,7 @@ function drawMenu() {
     drawButton('diff-minus', startX + 250, 380, '-');
     drawButton('diff-plus', startX + 300, 380, '+');
 
-    // Максимальная масса
+    // Максималь��ая масса
     ctx.fillText(`Max mass: ${gameSettings.maxMass}`, startX + 80, 450);
     drawButton('mass-minus', startX + 250, 430, '-');
     drawButton('mass-plus', startX + 300, 430, '+');
@@ -267,7 +232,7 @@ canvas.addEventListener('touchstart', (e) => {
     });
 }, { passive: false });
 
-// Обновим существующий обработчик кликов, чтобы он работал и с мышью
+// Обновим су��ествующий обработчик кликов, чтобы он работал и с мышью
 canvas.addEventListener('click', (e) => {
     if (gameState !== 'menu') return;
 
@@ -301,7 +266,7 @@ function handleButtonClick(id) {
             gameSettings.plantCount = Math.max(1, gameSettings.plantCount - 1);
             break;
         case 'plant-plus':
-            gameSettings.plantCount = Math.min(100, gameSettings.plantCount + 1);
+            gameSettings.plantCount = Math.min(300, gameSettings.plantCount + 1);
             break;
         case 'diff-minus':
             gameSettings.difficulty = Math.max(0, gameSettings.difficulty - 5);
@@ -333,7 +298,7 @@ function init() {
     player = new Entity(canvas.width / 2, canvas.height / 2, 1); // Стартовая масса 1
     entities.push(player);
 
-    // Создаем начальных сущ��ств
+    // Создаем начальных существ
     for (let i = 0; i < gameSettings.enemyCount; i++) {
         spawnRandomEntity();
     }
@@ -358,8 +323,8 @@ function spawnRandomEntity() {
     } while (distanceToPlayer < MIN_SAFE_DISTANCE);
     
     // Используем сложность как процент от максимально возможного размера
-    const minSizePercent = 0.01 + gameSettings.difficulty/100/2;
-    const maxSizePercent = 0.5 + gameSettings.difficulty/100;
+    const minSizePercent = -1 + gameSettings.difficulty/100;
+    const maxSizePercent = 0.1 + gameSettings.difficulty/100;
     
     const sizePercent = minSizePercent + Math.random() * (maxSizePercent - minSizePercent);
     const hp = Math.max(1, player.hp * sizePercent);
@@ -487,7 +452,7 @@ function checkCollisions() {
                     // Создаем новое растение взамен съеденного
                     spawnPlant();
 
-                    // Если р����стение черное, замедляем существо
+                    // Если растение черное, замедляем существо
                     if (plant.isBlack) {
                         slowDownEntity(entity1);
                     }
@@ -649,7 +614,7 @@ canvas.addEventListener('touchend', function(e) {
 
 // Функция отрисовки UI с более заметным джойстиком
 function drawUI() {
-    // Отрисовка стат��стики
+    // Отрисовка статистики
     ctx.fillStyle = 'black';
     ctx.font = '20px Arial';
     ctx.textAlign = 'left';
