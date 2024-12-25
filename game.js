@@ -116,7 +116,7 @@ class Plant {
         this.x = x;
         this.y = y;
         this.hp = 1;  // Каждое растение дает 1 массу
-        this.size = 8; // Размер для эмодзи
+        this.size = 6; // Размер для эмодзи
         this.radius = 8; // Размер для коллизий
         this.isBlack = isBlack;
     }
@@ -159,7 +159,7 @@ function drawMenu() {
 
     // Версия
     ctx.font = '16px Arial';
-    ctx.fillText('0.49', canvas.width / 2, 130);
+    ctx.fillText('0.51', canvas.width / 2, 130);
 
     // Результаты
     const bestScore = getBestScore();
@@ -296,6 +296,9 @@ function handleButtonClick(id) {
         case 'start':
             startGame();
             return;
+        case 'to-menu':
+            gameState = 'menu';
+            break;
     }
     saveSettings();
 }
@@ -535,20 +538,21 @@ function gameOver(isVictory = false) {
         ctx.fillText(`Score: ${finalScore}`, canvas.width / 2, canvas.height / 2);
         ctx.fillText(`Best Score: ${getBestScore()}`, canvas.width / 2, canvas.height / 2 + 40);
         
-        // Добавим подсказку
-        ctx.font = '24px Arial';
-        ctx.fillText('Click anywhere to continue', canvas.width / 2, canvas.height / 2 + 100);
+        // Кнопка возврата в меню
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(canvas.width / 2 - 60, canvas.height / 2 + 80, 120, 40);
+        ctx.fillStyle = 'white';
+        ctx.font = '20px Arial';
+        ctx.fillText('В меню', canvas.width / 2, canvas.height / 2 + 105);
+
+        // Сохраняем координаты кнопки для обработки кликов
+        buttons['to-menu'] = { 
+            x: canvas.width / 2 - 60, 
+            y: canvas.height / 2 + 80, 
+            width: 120, 
+            height: 40 
+        };
     }
-    
-    // Через 2 секунды или по клику переходим в меню
-    const clickHandler = () => {
-        canvas.removeEventListener('click', clickHandler);
-        canvas.removeEventListener('touchstart', clickHandler);
-        gameState = 'menu';
-    };
-    
-    canvas.addEventListener('click', clickHandler);
-    canvas.addEventListener('touchstart', clickHandler);
     
     if (!isVictory) {
         gameState = 'menu';
