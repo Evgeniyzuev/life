@@ -126,7 +126,7 @@ class Plant {
         ctx.font = `${this.size * 2}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(this.isBlack ? '⚫' : '🟢', this.x, this.y);
+        ctx.fillText(this.isBlack ? '�' : '🍏', this.x, this.y);
         // ctx.globalAlpha = 1.0; // Возвращаем нормальную прозрачность для остальных элементов
     }
 }
