@@ -193,13 +193,26 @@ function drawMenu() {
     drawButton('diff-minus', startX + 250, 380, '-');
     drawButton('diff-plus', startX + 300, 380, '+');
 
-    // Максималь��ая масса
+    // Максимальная масса
     ctx.fillText(`Max mass: ${gameSettings.maxMass}`, startX + 80, 450);
     drawButton('mass-minus', startX + 250, 430, '-');
     drawButton('mass-plus', startX + 300, 430, '+');
 
-    // Сдвинем кнопку старта ниже
-    drawButton('start', canvas.width / 2 - 60, 500, 'Start game', 120, 40);
+    // Кнопка старта в зеленом цвете
+    ctx.fillStyle = '#4CAF50'; // Зеленый цвет в стиле Material Design
+    ctx.fillRect(canvas.width / 2 - 60, 500, 120, 40);
+    ctx.fillStyle = 'white'; // Белый текст
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Start', canvas.width / 2, 525);
+
+    // Сохраняем координаты кнопки для обработки кликов
+    buttons['start'] = { 
+        x: canvas.width / 2 - 60, 
+        y: 500, 
+        width: 120, 
+        height: 40 
+    };
 }
 
 function drawButton(id, x, y, text, width = 40, height = 30) {
@@ -232,7 +245,7 @@ canvas.addEventListener('touchstart', (e) => {
     });
 }, { passive: false });
 
-// Обновим су��ествующий обработчик кликов, чтобы он работал и с мышью
+// Обновим существующий обработчик кликов, чтобы он работал и с мышью
 canvas.addEventListener('click', (e) => {
     if (gameState !== 'menu') return;
 
@@ -731,15 +744,15 @@ function gameLoop() {
             }
 
             // Логирование состояния каждые 5 секунд
-            if (Date.now() % 5000 < 16) {
-                console.log('Game state:', {
-                    entities: entities.length,
-                    plants: plants.length,
-                    playerMass: player.hp,
-                    totalMass: getTotalMass(),
-                    canvasSize: { w: canvas.width, h: canvas.height }
-                });
-            }
+            // if (Date.now() % 5000 < 16) {
+            //     console.log('Game state:', {
+            //         entities: entities.length,
+            //         plants: plants.length,
+            //         playerMass: player.hp,
+            //         totalMass: getTotalMass(),
+            //         canvasSize: { w: canvas.width, h: canvas.height }
+            //     });
+            // }
 
             const currentTime = Date.now();
             const totalMass = getTotalMass();
@@ -807,4 +820,16 @@ function slowDownEntity(entity) {
 
 // Вызываем resizeCanvas при инициализации
 resizeCanvas(); 
+
+// В начале файла добавим создание и применение стиля
+const style = document.createElement('style');
+style.textContent = `
+    #gameCanvas {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+`;
+document.head.appendChild(style);
 
