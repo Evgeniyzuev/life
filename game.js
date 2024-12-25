@@ -122,10 +122,12 @@ class Plant {
     }
 
     draw(ctx) {
+        ctx.globalAlpha = 0.6; // Устанавливаем постоянную полупрозрачность
         ctx.font = `${this.size * 2}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.isBlack ? '⚫' : '🟢', this.x, this.y);
+        ctx.globalAlpha = 1.0; // Возвращаем нормальную прозрачность для остальных элементов
     }
 }
 
