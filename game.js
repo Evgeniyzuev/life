@@ -613,8 +613,8 @@ function drawUI() {
     ctx.fillStyle = 'black';
     ctx.font = '20px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(`Масса: ${Math.floor(player.hp)}`, 10, 30);
-    ctx.fillText(`Общая масса: ${Math.floor(getTotalMass())}`, 10, 60);
+    ctx.fillText(`Mass: ${Math.floor(player.hp)}`, 10, 30);
+    ctx.fillText(`Total mass: ${Math.floor(getTotalMass())}`, 10, 60);
 
     // Отрисовка джойстика с более заметными цветами
     if (joystick.active) {
